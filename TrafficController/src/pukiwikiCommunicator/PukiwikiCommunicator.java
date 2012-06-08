@@ -142,18 +142,14 @@ implements PukiwikiJavaApplication, Runnable
 				if(com.startsWith("lan2wan ")){
 					com=com.substring("lan2wan ".length());
 					this.commandInterpreter(packetFilterLan,com);
-					return;
 				}
 				else
 				if(com.startsWith("wan2lan ")){
 					com=com.substring("wan2lan ".length());
-					this.commandInterpreter(packetFilterWan,com);
-					return;
-					
+					this.commandInterpreter(packetFilterWan,com);					
 				}
 				else{
     				this.commandInterpreter(packetMonitorFilter,com);
-    				return;
 				}
 			}
 			else
