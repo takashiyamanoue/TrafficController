@@ -507,16 +507,16 @@ implements PukiwikiJavaApplication, Runnable
 		if(x==y) return true;
 		return false;
 	}
-	public String getIpV4AddrFromHead(String x){
+	public String getIpV4AddrFromHead(String x, String[] rest){
 		String a[]=new String[4];
 		String w="";
-		x=readSpaces(x);
+		String xx=readSpaces(x);
 		while(true){
-		  if(x.equals("")) break;
-		  if(x==null) break;
-		  if(isNumber(x.charAt(0))||isLetter(x.charAt(0),'.')){
-			w=w+x.charAt(0);
-			x=x.substring(1);
+		  if(xx.equals("")) break;
+		  if(xx==null) break;
+		  if(isNumber(xx.charAt(0))||isLetter(xx.charAt(0),'.')){
+			w=w+xx.charAt(0);
+			xx=xx.substring(1);
 		  }
 		  else{
 			  break;
@@ -530,9 +530,31 @@ implements PukiwikiJavaApplication, Runnable
 			   String rtn=a[i];
 			   if(ax<0) rtn= "";
 			   if(ax>255) rtn= "";
-			   if(rtn.equals("")) return null;
+			   if(rtn.equals("")) {
+				   rest[0]=x;
+				   return null;
+			   }
 			}
 		}
+		rest[0]=xx;
+		return w;
+	}
+	public String getNumberFromHead(String x, String[] rest){
+		String a[]=new String[4];
+		String w="";
+		String xx=readSpaces(x);
+		while(true){
+		  if(xx.equals("")) break;
+		  if(xx==null) break;
+		  if(isNumber(xx.charAt(0))){
+			w=w+xx.charAt(0);
+			xx=xx.substring(1);
+		  }
+		  else{
+			  break;
+		  }
+		}
+		rest[0]=xx;
 		return w;
 	}
 	public String getStringConst(String w){
@@ -562,12 +584,38 @@ implements PukiwikiJavaApplication, Runnable
 		if(y.startsWith("ip=")){
 			y=y.substring("ip=".length());
 			String w=readSpaces(y);
-			String ipa=getIpV4AddrFromHead(w);
+			String [] rest=new String[1];
+			String ipa=getIpV4AddrFromHead(w,rest);
 			if(ipa==null){
 				ipa="0.0.0.0";
 			}
-			String[] args=new String[1];
+			String[] args=new String[3];
 			args[0]=ipa;
+			w=readSpaces(rest[0]);
+			if(w.equals("")){
+			}
+			else
+			if(w.startsWith("to ")){
+				w=w.substring("to ".length());
+				w=readSpaces(w);
+				String ipb=getIpV4AddrFromHead(w,rest);
+				if(ipb==null){
+					ipb="0.0.0.0";
+				}
+				args[1]=ipb;
+				w=readSpaces(rest[0]);
+				if(w.startsWith(":")){
+					w=w.substring(":".length());
+					w=readSpaces(w);
+					String port=getNumberFromHead(w,rest);
+					if(port==null){
+						port="0";
+					}
+					args[2]=port;
+				}
+				else{
+				}
+			}
 			if(f!=null){
 			   f.addFilter(command+" ip=",args);
 			}
@@ -618,6 +666,16 @@ implements PukiwikiJavaApplication, Runnable
 			y=readSpaces(y);
 			return this.subCommandInterpreter(f, "return-syn-ack", y);
 		}	
+		if(y.startsWith("forward ")){
+			y=y.substring("forward ".length());
+			y=readSpaces(y);
+			return this.subCommandInterpreter(f, "forward", y);			
+		}
+		if(y.startsWith("dns-intercept ")){
+			y=y.substring("forward ".length());
+			y=readSpaces(y);
+			return this.subCommandInterpreter(f, "dns-intercept", y);			
+		}
 		return false;
 	}
 	public void setMonitorPacketFilter(PacketMonitorFilter f){

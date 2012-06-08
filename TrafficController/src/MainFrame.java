@@ -275,7 +275,7 @@ public class MainFrame extends JFrame
 			    appliMessagePane = new JScrollPane();
 			    appliMessagePane.setBounds(5, 40, 686, 260);
 			    messagePanel.add(appliMessagePane);
-//				ip_log = new JFrame("IP�A�h���X�A�|�[�g�ϊ��̊m�F");
+//				ip_log = new JFrame("IP�ｽA�ｽh�ｽ�ｽ�ｽX�ｽA�ｽ|�ｽ[�ｽg�ｽﾏ奇ｿｽ�ｽﾌ確�ｽF");
 			    {
 					appliMessageArea = new JTextArea();
 					appliMessagePane.setViewportView(appliMessageArea);
@@ -506,7 +506,9 @@ public class MainFrame extends JFrame
 				   wanPcap,wan2Lan);
 		   wanSideIO.setNewPcap(wanPcap);
 		   wanSideIO.setForwardInterface(lanSideIO);
+		   wan2Lan.setAnotherSideFilter(lan2Wan);
 		   lanSideIO.setForwardInterface(wanSideIO);
+		   lan2Wan.setAnotherSideFilter(wan2Lan);
 		   wanSideIO.start();
 		}
 		else{
