@@ -1,13 +1,17 @@
+import java.util.Calendar;
 import java.util.Date;
 
 import javax.swing.JTextArea;
 import javax.swing.SwingUtilities;
+
+import logFile.BlockedFileManager;
 
 import org.jnetpcap.Pcap;
 import org.jnetpcap.PcapHeader;
 import org.jnetpcap.nio.JBuffer;
 import org.jnetpcap.nio.JMemory;
 import org.jnetpcap.packet.JRegistry;
+import org.jnetpcap.packet.JScanner;
 import org.jnetpcap.packet.PcapPacket;
 import org.jnetpcap.packet.format.FormatUtils;
 import org.jnetpcap.protocol.lan.Ethernet;
@@ -39,17 +43,57 @@ public class LogManager {
     Icmp icmp = new Icmp();
 	final Http http = new Http();
 	PacketMonitorFilter packetFilter;
+	int currentHour;
+    Calendar calendar;
+	LogManager logManager;
+	BlockedFileManager logFileManager;
+	long firstTime=-1;
+	long lastTime=0;
+	long packetNumber=0;
 
+	public long getFirstTime(){
+		return firstTime;
+	}
+	public long getLatestTime(){
+		return lastTime;
+	}
+	
 	public LogManager(PacketMonitorFilter f){
 		this.packetFilter=f;
+		calendar=Calendar.getInstance();
+		currentHour=calendar.get(Calendar.HOUR);
+		logFileManager=new BlockedFileManager("TempLog-"+currentHour);
 	}
 	MainFrame main;
 	String wmessage;
 //	public void logDetail(MainFrame m,PcapPacket packet, int id){
-	public void logDetail(MainFrame m, PcapPacket packet, int itf){
+	public synchronized void logDetail(MainFrame m, PcapPacket packet, int itf){
 		main=m;
+		int h=calendar.get(Calendar.HOUR);
+		if(h!=currentHour){
+			logFileManager.update();
+			logFileManager=new BlockedFileManager("TempLog-"+h);
+			currentHour=h;
+			main.clearButtonActionPerformed(null);
+			JScanner.getThreadLocal().setFrameNumber(0);  
+			firstTime=-1;
+			lastTime=0;
+		}
+		long t=packet.getCaptureHeader().timestampInMillis();
+		if(this.firstTime<0) this.firstTime=t;
+		if(t>this.lastTime) this.lastTime=t;
+		if(logFileManager!=null){
+		       this.logFileManager.putMessageAt(packet, this.packetNumber);
+		       this.packetNumber++;
+		}
+		if(main!=null){
+			/* */
+			if(main.mainWatch!=null)
+				this.main.mainWatch.setTermScrollBar();
+		   /* */
+		}				
+
 //		packet.scan(id);
-		long n=packet.getFrameNumber();
 		String rtn=packetFilter.exec(packet);
 		String match="";
 		if(rtn!=null) match=rtn;
@@ -171,7 +215,7 @@ public class LogManager {
 		}
 		}
 		catch(Exception e){
-			System.out.println(e.toString()+"n="+n+" itf="+itf);
+			System.out.println(e.toString()+"n="+packetNumber+" itf="+itf);
 		}
 		states[2]=prt;
 //		states[3]=IP[1];//‘—MŒ³
@@ -186,9 +230,9 @@ public class LogManager {
 		states[8]=dmac;
 		
 
-		wmessage="#"+n+" date="+date+" "+smac+" -> "+dmac+" prtcl="+prt+" "+sip+" -> "+dip+" "+states[0];
+		wmessage="#"+packetNumber+" date="+date+" "+smac+" -> "+dmac+" prtcl="+prt+" "+sip+" -> "+dip+" "+states[0];
 		main.writePacketMessage(wmessage);
-		this.orgLog(n, time,states, address,match);		
+		this.orgLog(packetNumber, time,states, address,match);		
 	}
 	boolean isInChars(char x, char[] y){
 		for(int i=0;i<y.length;i++){
@@ -355,6 +399,8 @@ public class LogManager {
 			return b;
 		}
 	}
-	
+	public void updateLogFileManager(){
+		this.logFileManager.update();
+	}
 }
 

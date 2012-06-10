@@ -98,6 +98,7 @@ public class MainFrame extends JFrame
 //		vtraffic = new VisualTrf[256][256];
 		this.setProperties();
 		firstMessage =new FirstMessage(this);
+		this.setMonitorFilter(packetMonitorFilter);
 	}
 	private void initGUI(){
 		{
@@ -491,7 +492,7 @@ public class MainFrame extends JFrame
 		   lanSideIO = new LanSideIO(this, 
 			       networkInterfaces.elementAt(this.lanSideInterface),
 				   lanPcap,lan2Wan);
-		   lanSideIO.setMonitorFilter(packetMonitorFilter);
+		   lanSideIO.setLogManager(this.logManager);
 		   lanSideIO.setNewPcap(lanPcap);
 		   lanSideIO.start();
 		}
@@ -504,6 +505,7 @@ public class MainFrame extends JFrame
 		   wanSideIO = new WanSideIO(this, 
 				   networkInterfaces.elementAt(this.wanSideInterface),
 				   wanPcap,wan2Lan);
+		   wanSideIO.setLogManager(this.logManager);
 		   wanSideIO.setNewPcap(wanPcap);
 		   wanSideIO.setForwardInterface(lanSideIO);
 		   wan2Lan.setAnotherSideFilter(lan2Wan);
@@ -665,20 +667,16 @@ public class MainFrame extends JFrame
 		System.out.println("stopButton.actionPerformed, event="+evt);
 		//TODO add your code for stopButton.actionPerformed
 		
-		if(lanSideIO!=null){
-			lanSideIO.stop();
-			   if(lanSideIO.logFileManager!=null) lanSideIO.logFileManager.update();
-		}
 //		if(errout!=null)errout.stop();
 		if(mainWatch!=null) mainWatch.stop();
 	}
 	public long getLatestTime(){
-		if(this.lanSideIO==null) return 0;
-		return lanSideIO.getLatestTime();
+		if(this.logManager==null) return 0;
+		return logManager.getLatestTime();
 	}
 	public long getFirstTime(){
-		if(this.lanSideIO==null) return 0;
-		return lanSideIO.getFirstTime();		
+		if(this.logManager==null) return 0;
+		return logManager.getFirstTime();		
 	}
 	public long getScrollBarEndTime(){
 		return this.mainWatch.getScrollBarEndTime();
@@ -848,6 +846,13 @@ public class MainFrame extends JFrame
 			
 		}
 	}
+	PacketMonitorFilter monitorFilter;
+	LogManager logManager;
+	public void setMonitorFilter(PacketMonitorFilter f){
+		monitorFilter=f;
+		logManager = new LogManager(f);		
+	}
+	
 }
 
 

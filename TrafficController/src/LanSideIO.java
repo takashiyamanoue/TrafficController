@@ -34,11 +34,7 @@ import pukiwikiCommunicator.PacketMonitorFilter;
  */
 public class LanSideIO extends WanSideIO implements Runnable, ForwardInterface
 {
-	LogManager logManager;
-		
-	PacketMonitorFilter monitorFilter;
-	BlockedFileManager logFileManager;
-	
+	public PacketMonitorFilter monitorFilter;	
 
 	/***************************************************************************
 	 * Third - we must map pcap's data-link-type to jNetPcap's protocol IDs.
@@ -52,27 +48,9 @@ public class LanSideIO extends WanSideIO implements Runnable, ForwardInterface
 		super(m,pif,p,fl);
 	}
 
-	public void setMonitorFilter(PacketMonitorFilter f){
-		monitorFilter=f;
-		calendar=Calendar.getInstance();
-		logManager = new LogManager(f);
-		
-	}
-	private long firstTime=-1;
-	private long lastTime=0;
-	
 	public void run(){
 		while(me!=null){
-			int h=calendar.get(Calendar.HOUR);
-			if(h!=currentHour){
-				logFileManager.update();
-				logFileManager=new BlockedFileManager("TempLog-"+h);
-				currentHour=h;
-				main.clearButtonActionPerformed(null);
-				JScanner.getThreadLocal().setFrameNumber(0);  
-				firstTime=-1;
-				lastTime=0;
-			}
+
 			int rtn=0;
 			synchronized(pcap){
 			   rtn=pcap.nextEx(hdr, buf);
@@ -93,22 +71,11 @@ public class LanSideIO extends WanSideIO implements Runnable, ForwardInterface
 					   }
 				    }
 				}
-				long t=packet.getCaptureHeader().timestampInMillis();
-				if(this.firstTime<0) this.firstTime=t;
-				if(t>this.lastTime) this.lastTime=t;
 				if(logManager!=null)
 			    	  synchronized(logManager){
 				          logManager.logDetail(main,packet,0);	
 			    	  }
-				long n=packet.getFrameNumber();
-				if(logFileManager!=null)
-				       this.logFileManager.putMessageAt(packet, n);
-				if(main!=null){
-					/* */
-					if(main.mainWatch!=null)
-						this.main.mainWatch.setTermScrollBar();
-				   /* */
-				}
+
 			}
 		}
 		System.out.println("exitting LogOut loop");
@@ -117,8 +84,6 @@ public class LanSideIO extends WanSideIO implements Runnable, ForwardInterface
 		if(me==null){
 			me=new Thread(this,"LanSideIO");
 			this.main.mainWatch.setStartButtonValue(true);
-			currentHour=calendar.get(Calendar.HOUR);
-			logFileManager=new BlockedFileManager("TempLog-"+currentHour);
 			me.start();
 		}
 	}
@@ -133,11 +98,9 @@ public class LanSideIO extends WanSideIO implements Runnable, ForwardInterface
 			System.out.println(e.toString());
 		}
 	}
-    public long getFirstTime(){
-    	return this.firstTime;
-    }
-    public long getLatestTime(){
-    	return this.lastTime;
+    LogManager logManager;
+    public void setLogManager(LogManager lm){
+    	this.logManager=lm;
     }
 
 }

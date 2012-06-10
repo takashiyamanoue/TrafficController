@@ -157,7 +157,7 @@ public PcapPacket exec(PcapPacket p){
         if(isInNat(dnsr, 0)){
     	  AddrPort ap=new AddrPort(dnsr,0);
     	  return setDnsReturn(p,ap.addr);
-      }
+        }
     }
 	return p;
 }
@@ -238,6 +238,20 @@ public PcapPacket execCommand(String command, String[] args, PcapPacket p){
     	String out=ptime+" "+this.etherString+this.ipString+this.l4String+"\n";
 //    	System.out.println("matching..."+out);    		PcapPacket pr=makeSynAckReturn(p);
     	if(isMatchIpV4Address(args[0],dip)){
+//        	pukiwiki.writeResult(out);
+//        	this.writeResultToBuffer(out);
+    		String faddr=args[1];
+    		PcapPacket pr=makeForward(p,faddr,args[2]);
+    		return pr;
+        }
+    	else{
+    		return p;
+    	}
+	}
+    if(command.equals("forward sip=")){
+    	String out=ptime+" "+this.etherString+this.ipString+this.l4String+"\n";
+//    	System.out.println("matching..."+out);    		PcapPacket pr=makeSynAckReturn(p);
+    	if(isMatchIpV4Address(args[0],sip)){
 //        	pukiwiki.writeResult(out);
 //        	this.writeResultToBuffer(out);
     		String faddr=args[1];

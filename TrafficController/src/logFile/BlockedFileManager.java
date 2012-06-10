@@ -255,6 +255,7 @@ public class BlockedFileManager extends java.lang.Object
         block.setSize(blockSize);
         for(i=0;i<n;i++){
             size=0;
+            a=new byte[100];
             try{
                size=din.readInt();
                 a=new byte[size];
@@ -270,10 +271,11 @@ public class BlockedFileManager extends java.lang.Object
             if(size>0){
 //                System.out.println("i="+i+" size="+size);
             	try{
-            	m=new PcapPacket(a);
+            	    m=new PcapPacket(a);
             	}
             	catch(Exception e){
             		System.out.println(e.toString()+ " at BlockedFileManager.readBlock i="+i);
+//            		Thread.dumpStack();
             	}
             }
             try{

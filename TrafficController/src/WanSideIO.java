@@ -104,6 +104,10 @@ public class WanSideIO implements Runnable, ForwardInterface
 					  }
 				   }
 				}
+				if(logManager!=null)
+			    	  synchronized(logManager){
+				          logManager.logDetail(main,packet,0);	
+			    	  }
 			}
 		}
 		System.out.println("exitting LogOut loop");
@@ -145,5 +149,8 @@ public class WanSideIO implements Runnable, ForwardInterface
 	     }
          return true;
     }
-
+    LogManager logManager;
+    public void setLogManager(LogManager lm){
+    	this.logManager=lm;
+    }
 }
