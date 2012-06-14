@@ -24,6 +24,8 @@ import java.util.Calendar;
 import java.util.List;
 import java.util.Properties;
 import java.util.Vector;
+import java.util.regex.Pattern;
+
 import logFile.BlockedFileManager;
 
 /**
@@ -77,6 +79,9 @@ public class MainFrame extends JFrame
 	private MessageDialog messageDialog;
 	private PacketFilter lan2Wan;
 	private PacketFilter wan2Lan;
+	private JLabel regularExpressionFieldLabel;
+	private JTextField regularExpressionField;
+	private JCheckBox grepCheckBox;
 
 	public MainFrame(){
 		initGUI();
@@ -264,6 +269,9 @@ public class MainFrame extends JFrame
 			{
 				dumpClearButton = new JButton();
 				tcpDumpPanel.add(dumpClearButton);
+				tcpDumpPanel.add(getGrepCheckBox());
+				tcpDumpPanel.add(getRegularExpressionField());
+				tcpDumpPanel.add(getRegularExpressionFieldLabel());
 				dumpClearButton.setText("clear");
 				dumpClearButton.setBounds(39, 9, 82, 26);
 				dumpClearButton.addActionListener(new ActionListener() {
@@ -614,6 +622,16 @@ public class MainFrame extends JFrame
 	        
 	}
 	public void writePacketMessage(String x){
+		if(this.grepCheckBox.isSelected()){
+			boolean b=false;
+			try{
+			    b = Pattern.matches(this.regularExpressionField.getText(), x);
+			}
+			catch(Exception e){
+				this.logtext.append("\n!wrong regular expression.\n");
+			}
+			if(!b) return;
+		}
 		String w=this.logtext.getText();
 		if(w.length()>10000)
 		     w=w.substring(5000);
@@ -853,6 +871,32 @@ public class MainFrame extends JFrame
 		logManager = new LogManager(f);		
 	}
 	
+	private JCheckBox getGrepCheckBox() {
+		if(grepCheckBox == null) {
+			grepCheckBox = new JCheckBox();
+			grepCheckBox.setText("grep");
+			grepCheckBox.setBounds(148, 10, 68, 23);
+		}
+		return grepCheckBox;
+	}
+	
+	private JTextField getRegularExpressionField() {
+		if(regularExpressionField == null) {
+			regularExpressionField = new JTextField();
+			regularExpressionField.setBounds(216, 9, 221, 26);
+		}
+		return regularExpressionField;
+	}
+	
+	private JLabel getRegularExpressionFieldLabel() {
+		if(regularExpressionFieldLabel == null) {
+			regularExpressionFieldLabel = new JLabel();
+			regularExpressionFieldLabel.setText("(regular expression)");
+			regularExpressionFieldLabel.setBounds(443, 12, 141, 19);
+		}
+		return regularExpressionFieldLabel;
+	}
+
 }
 
 

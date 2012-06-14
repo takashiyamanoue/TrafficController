@@ -57,7 +57,7 @@ public class LanSideIO extends WanSideIO implements Runnable, ForwardInterface
 			}
 			if(rtn!=Pcap.NEXT_EX_OK) {
 //				me=null;
-				main.writePacketMessage("pcap.NEXT_EX not OK");
+				main.writePacketMessage("pcap.NEXT_EX not OK-1");
 			}
 			else
 			{
@@ -70,11 +70,11 @@ public class LanSideIO extends WanSideIO implements Runnable, ForwardInterface
 					     this.otherIO.sendPacket(forwardPacket);
 					   }
 				    }
+					if(logManager!=null)
+				    	  synchronized(logManager){
+					          logManager.logDetail(main,forwardPacket,1);	
+				    	  }
 				}
-				if(logManager!=null)
-			    	  synchronized(logManager){
-				          logManager.logDetail(main,packet,0);	
-			    	  }
 
 			}
 		}

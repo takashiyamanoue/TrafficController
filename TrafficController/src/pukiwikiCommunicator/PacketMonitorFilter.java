@@ -167,7 +167,8 @@ public class PacketMonitorFilter implements FilterInterface
         if(command.equals("get startsWith ")){
         	String out=ptime+" "+this.etherString+this.ipString+this.l4String+"\n";
 //        	System.out.println("matching...startsWith "+payloadString+ " and "+args[0]);
-//            if(args[0].equals(sip)){            	
+//            if(args[0].equals(sip)){
+        	if(args[0]==null) return false;
         	if(payloadString.startsWith(args[0])){
 //            	pukiwiki.writeResult(out);
             	this.writeResultToBuffer(out);

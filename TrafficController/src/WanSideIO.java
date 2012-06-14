@@ -90,7 +90,7 @@ public class WanSideIO implements Runnable, ForwardInterface
 			int rtn=pcap.nextEx(hdr, buf);
 			if(rtn!=Pcap.NEXT_EX_OK) {
 //				me=null;
-				main.writePacketMessage("pcap.NEXT_EX not OK");
+				main.writePacketMessage("pcap.NEXT_EX not OK-0");
 			}
 			else
 			{
@@ -100,14 +100,16 @@ public class WanSideIO implements Runnable, ForwardInterface
 				   PcapPacket forwardPacket=forwardFilter.exec(packet);
 				   if(forwardPacket!=null){
 					  if(otherIO!=null){
+//						  byte[] fp=forwardPacket.getByteArray(arg0, arg1);
 						  otherIO.sendPacket(forwardPacket);
+//						  otherIO.sendPacket
 					  }
+					  if(logManager!=null)
+					      synchronized(logManager){
+						          logManager.logDetail(main,forwardPacket,0);	
+					     }
 				   }
 				}
-				if(logManager!=null)
-			    	  synchronized(logManager){
-				          logManager.logDetail(main,packet,0);	
-			    	  }
 			}
 		}
 		System.out.println("exitting LogOut loop");

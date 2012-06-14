@@ -25,11 +25,11 @@ import org.jnetpcap.protocol.tcpip.Udp;
 import pukiwikiCommunicator.PacketMonitorFilter;
 
 public class LogManager {
-	public String realstream;//‚È‚ÜƒƒO
-	public String prt;//ƒvƒƒgƒRƒ‹–¼
-	public int[] srcIP;//‘—Mæ[0]:IPƒAƒhƒŒƒX‰ºˆÊ8bit [1]:port‰ºˆÊ‚Wƒrƒbƒg
-	public int[] dstIP;//ˆ¶æ[0];IPƒAƒhƒŒƒX‰ºˆÊ8bit [1]:port‰ºˆÊ8bit
-	public String[] IP;//[0]:ŠÔƒXƒ^ƒ“ƒv@[1]:‘—MæIPƒAƒhƒŒƒX@[2]:ˆ¶æIPƒAƒhƒŒƒX
+	public String realstream;//ï¿½È‚Üƒï¿½ï¿½O
+	public String prt;//ï¿½vï¿½ï¿½ï¿½gï¿½Rï¿½ï¿½ï¿½ï¿½
+	public int[] srcIP;//ï¿½ï¿½ï¿½Mï¿½ï¿½[0]:IPï¿½Aï¿½hï¿½ï¿½ï¿½Xï¿½ï¿½ï¿½ï¿½8bit [1]:portï¿½ï¿½ï¿½Ê‚Wï¿½rï¿½bï¿½g
+	public int[] dstIP;//ï¿½ï¿½ï¿½ï¿½[0];IPï¿½Aï¿½hï¿½ï¿½ï¿½Xï¿½ï¿½ï¿½ï¿½8bit [1]:portï¿½ï¿½ï¿½ï¿½8bit
+	public String[] IP;//[0]:ï¿½ï¿½ï¿½ÔƒXï¿½^ï¿½ï¿½ï¿½vï¿½@[1]:ï¿½ï¿½ï¿½Mï¿½ï¿½IPï¿½Aï¿½hï¿½ï¿½ï¿½Xï¿½@[2]:ï¿½ï¿½ï¿½ï¿½IPï¿½Aï¿½hï¿½ï¿½ï¿½X
 	public String[] detailIP;//
 //	public OrgLog orgnaize;
 	
@@ -218,9 +218,9 @@ public class LogManager {
 			System.out.println(e.toString()+"n="+packetNumber+" itf="+itf);
 		}
 		states[2]=prt;
-//		states[3]=IP[1];//‘—MŒ³
+//		states[3]=IP[1];//ï¿½ï¿½ï¿½Mï¿½ï¿½
 		states[3]=sip;
-//		states[4]=IP[2];//‘—Mæ              
+//		states[4]=IP[2];//ï¿½ï¿½ï¿½Mï¿½ï¿½              
 		states[4]=dip;
 		sport=(address[4]<<8)|(address[5]);
 		dport=(address[10]<<8)|(address[11]);
@@ -230,7 +230,7 @@ public class LogManager {
 		states[8]=dmac;
 		
 
-		wmessage="#"+packetNumber+" date="+date+" "+smac+" -> "+dmac+" prtcl="+prt+" "+sip+" -> "+dip+" "+states[0];
+		wmessage="#"+packetNumber+" if="+itf+" date="+date+" "+smac+" -> "+dmac+" prtcl="+prt+" "+sip+" -> "+dip+" "+sport+"->"+dport+" "+states[0];
 		main.writePacketMessage(wmessage);
 		this.orgLog(packetNumber, time,states, address,match);		
 	}
@@ -322,7 +322,7 @@ public class LogManager {
 		if(checkExistSrc(srcIpaunder,srcPortunder) == true){
 			vt = new VisualTrf(main,frameNumber,lt,state,address,2);
 		    mainWatch.vtraffic[srcIpaunder][srcPortunder] = vt; 
-			System.out.println("[  "+ srcIpaunder +"  "+srcPortunder+"] ‚ª¶‚Ü‚ê‚Ü‚µ‚½B");
+			System.out.println("[  "+ srcIpaunder +"  "+srcPortunder+"] ï¿½ï¿½ï¿½ï¿½ï¿½Ü‚ï¿½Ü‚ï¿½ï¿½ï¿½ï¿½B");
 			
 		}
 		else{
