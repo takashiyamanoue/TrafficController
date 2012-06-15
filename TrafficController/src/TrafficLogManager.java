@@ -1,3 +1,4 @@
+
 import java.util.Calendar;
 import java.util.Date;
 
@@ -21,15 +22,15 @@ import org.jnetpcap.protocol.network.Ip4;
 import org.jnetpcap.protocol.tcpip.Http;
 import org.jnetpcap.protocol.tcpip.Tcp;
 import org.jnetpcap.protocol.tcpip.Udp;
-
 import pukiwikiCommunicator.PacketMonitorFilter;
 
-public class LogManager {
-	public String realstream;//�Ȃ܃��O
-	public String prt;//�v���g�R����
-	public int[] srcIP;//���M��[0]:IP�A�h���X����8bit [1]:port���ʂW�r�b�g
-	public int[] dstIP;//����[0];IP�A�h���X����8bit [1]:port����8bit
-	public String[] IP;//[0]:���ԃX�^���v�@[1]:���M��IP�A�h���X�@[2]:����IP�A�h���X
+
+public class TrafficLogManager {
+	public String realstream;//�ｽﾈま�ｿｽ�ｽO
+	public String prt;//�ｽv�ｽ�ｽ�ｽg�ｽR�ｽ�ｽ�ｽ�ｽ
+	public int[] srcIP;//�ｽ�ｽ�ｽM�ｽ�ｽ[0]:IP�ｽA�ｽh�ｽ�ｽ�ｽX�ｽ�ｽ�ｽ�ｽ8bit [1]:port�ｽ�ｽ�ｽﾊ８�ｽr�ｽb�ｽg
+	public int[] dstIP;//�ｽ�ｽ�ｽ�ｽ[0];IP�ｽA�ｽh�ｽ�ｽ�ｽX�ｽ�ｽ�ｽ�ｽ8bit [1]:port�ｽ�ｽ�ｽ�ｽ8bit
+	public String[] IP;//[0]:�ｽ�ｽ�ｽﾔス�ｽ^�ｽ�ｽ�ｽv�ｽ@[1]:�ｽ�ｽ�ｽM�ｽ�ｽIP�ｽA�ｽh�ｽ�ｽ�ｽX�ｽ@[2]:�ｽ�ｽ�ｽ�ｽIP�ｽA�ｽh�ｽ�ｽ�ｽX
 	public String[] detailIP;//
 //	public OrgLog orgnaize;
 	
@@ -45,7 +46,7 @@ public class LogManager {
 	PacketMonitorFilter packetFilter;
 	int currentHour;
     Calendar calendar;
-	LogManager logManager;
+	TrafficLogManager logManager;
 	BlockedFileManager logFileManager;
 	long firstTime=-1;
 	long lastTime=0;
@@ -58,7 +59,7 @@ public class LogManager {
 		return lastTime;
 	}
 	
-	public LogManager(PacketMonitorFilter f){
+	public TrafficLogManager(PacketMonitorFilter f){
 		this.packetFilter=f;
 		calendar=Calendar.getInstance();
 		currentHour=calendar.get(Calendar.HOUR);
@@ -218,9 +219,9 @@ public class LogManager {
 			System.out.println(e.toString()+"n="+packetNumber+" itf="+itf);
 		}
 		states[2]=prt;
-//		states[3]=IP[1];//���M��
+//		states[3]=IP[1];//�ｽ�ｽ�ｽM�ｽ�ｽ
 		states[3]=sip;
-//		states[4]=IP[2];//���M��              
+//		states[4]=IP[2];//�ｽ�ｽ�ｽM�ｽ�ｽ              
 		states[4]=dip;
 		sport=(address[4]<<8)|(address[5]);
 		dport=(address[10]<<8)|(address[11]);
@@ -322,7 +323,7 @@ public class LogManager {
 		if(checkExistSrc(srcIpaunder,srcPortunder) == true){
 			vt = new VisualTrf(main,frameNumber,lt,state,address,2);
 		    mainWatch.vtraffic[srcIpaunder][srcPortunder] = vt; 
-			System.out.println("[  "+ srcIpaunder +"  "+srcPortunder+"] �����܂�܂����B");
+			System.out.println("[  "+ srcIpaunder +"  "+srcPortunder+"] �ｽ�ｽ�ｽ�ｽ�ｽﾜゑｿｽﾜゑｿｽ�ｽ�ｽ�ｽB");
 			
 		}
 		else{

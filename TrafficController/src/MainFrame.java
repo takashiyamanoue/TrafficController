@@ -62,8 +62,8 @@ public class MainFrame extends JFrame
 //    public VisualTrf vtraffic[][];
     public MainWatch mainWatch;
     private JButton clearButton;
-    private LanSideIO lanSideIO;
-    private WanSideIO wanSideIO;
+    private OneSideIO lanSideIO;
+    private OneSideIO wanSideIO;
 //    private ErrOut errout;
     private JPanel mainPanel;
     private JPanel tcpDumpPanel;
@@ -497,33 +497,43 @@ public class MainFrame extends JFrame
         	
         }
 		if(lanSideIO==null){
-		   lanSideIO = new LanSideIO(this, 
+		   lanSideIO = new OneSideIO(this, 
 			       networkInterfaces.elementAt(this.lanSideInterface),
 				   lanPcap,lan2Wan);
+		   lanSideIO.setInterfaceNo(1);
 		   lanSideIO.setLogManager(this.logManager);
 		   lanSideIO.setNewPcap(lanPcap);
 		   lanSideIO.start();
 		}
 		else{
 		   lanSideIO.stop();
+		   lan2Wan.stop();
 		   lanSideIO.setNewPcap(lanPcap);
+		   lan2Wan.start();
 		   lanSideIO.start();
 		}
 		if(wanSideIO==null){
-		   wanSideIO = new WanSideIO(this, 
+		   wanSideIO = new OneSideIO(this, 
 				   networkInterfaces.elementAt(this.wanSideInterface),
 				   wanPcap,wan2Lan);
+		   wanSideIO.setInterfaceNo(0);
 		   wanSideIO.setLogManager(this.logManager);
 		   wanSideIO.setNewPcap(wanPcap);
-		   wanSideIO.setForwardInterface(lanSideIO);
+		   wan2Lan.setForwardInterface(lanSideIO);
 		   wan2Lan.setAnotherSideFilter(lan2Wan);
-		   lanSideIO.setForwardInterface(wanSideIO);
+		   wan2Lan.setPacketQueue(wanSideIO.getPacketQueue());
+		   lan2Wan.setForwardInterface(wanSideIO);
 		   lan2Wan.setAnotherSideFilter(wan2Lan);
+		   lan2Wan.setPacketQueue(lanSideIO.getPacketQueue());
+		   lan2Wan.start();
+		   wan2Lan.start();
 		   wanSideIO.start();
 		}
 		else{
 		   wanSideIO.stop();
+		   wan2Lan.stop();
 		   wanSideIO.setNewPcap(wanPcap);
+		   wan2Lan.start();
 		   wanSideIO.start();
 		}
 	}
@@ -865,10 +875,10 @@ public class MainFrame extends JFrame
 		}
 	}
 	PacketMonitorFilter monitorFilter;
-	LogManager logManager;
+	TrafficLogManager logManager;
 	public void setMonitorFilter(PacketMonitorFilter f){
 		monitorFilter=f;
-		logManager = new LogManager(f);		
+		logManager = new TrafficLogManager(f);		
 	}
 	
 	private JCheckBox getGrepCheckBox() {

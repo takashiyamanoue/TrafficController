@@ -1,4 +1,6 @@
 import java.util.Calendar;
+import java.util.Queue;
+import java.util.concurrent.ArrayBlockingQueue;
 
 import javax.swing.JTextArea;
 
@@ -12,6 +14,7 @@ import org.jnetpcap.nio.JMemory;
 import org.jnetpcap.packet.JRegistry;
 import org.jnetpcap.packet.JScanner;
 import org.jnetpcap.packet.PcapPacket;
+import org.jnetpcap.packet.PcapPacketHandler;
 import org.jnetpcap.packet.format.FormatUtils;
 import org.jnetpcap.protocol.lan.Ethernet;
 import org.jnetpcap.protocol.network.Ip4;
@@ -20,8 +23,7 @@ import pukiwikiCommunicator.ForwardInterface;
 import pukiwikiCommunicator.PacketFilter;
 import pukiwikiCommunicator.PacketMonitorFilter;
 
-
-public class WanSideIO implements Runnable, ForwardInterface
+public class OneSideIO implements Runnable, ForwardInterface
 {
 	Pcap pcap;
 	Thread me=null;
@@ -55,7 +57,7 @@ public class WanSideIO implements Runnable, ForwardInterface
     PacketFilter forwardFilter;
     PcapIf myIf;
     byte[] ifMac;
-	public WanSideIO(MainFrame m,PcapIf pif, Pcap p,PacketFilter fl){
+	public OneSideIO(MainFrame m,PcapIf pif, Pcap p,PacketFilter fl){
 		main=m;
 		myIf=pif;
 		try{
@@ -69,50 +71,33 @@ public class WanSideIO implements Runnable, ForwardInterface
 		pcap = p;
 		id= JRegistry.mapDLTToId(pcap.datalink());
 	}
-	ForwardInterface otherIO;
-	public void setForwardInterface(ForwardInterface fi){
-		otherIO=fi;
-	}
 	public void setNewPcap(Pcap p){
 		pcap = p;
 		id= JRegistry.mapDLTToId(pcap.datalink());
 	}
 	public void run(){
-		while(me!=null){
-			int h=calendar.get(Calendar.HOUR);
-			if(h!=currentHour){
-//				logFileManager.update();
-//				logFileManager=new BlockedFileManager("TempLog-"+h);
-				currentHour=h;
-				main.clearButtonActionPerformed(null);
-				JScanner.getThreadLocal().setFrameNumber(0);  
-			}
-			int rtn=pcap.nextEx(hdr, buf);
-			if(rtn!=Pcap.NEXT_EX_OK) {
-//				me=null;
-				main.writePacketMessage("pcap.NEXT_EX not OK-0");
-			}
-			else
-			{
-				PcapPacket packet = new PcapPacket(hdr, buf);
+		PcapPacketHandler<Queue<PcapPacket>> handler = new PcapPacketHandler<Queue<PcapPacket>>() {  
+		  public void nextPacket(PcapPacket packet, Queue<PcapPacket> queue) {  
+//				while(me!=null){
+				int h=calendar.get(Calendar.HOUR);
+				if(h!=currentHour){
+//					logFileManager.update();
+//					logFileManager=new BlockedFileManager("TempLog-"+h);
+					currentHour=h;
+					main.clearButtonActionPerformed(null);
+					JScanner.getThreadLocal().setFrameNumber(0);  
+				}
+				PcapPacket permanent = new PcapPacket(packet);
 				packet.scan(id);
 				if(isFromOtherIf(packet)){
-				   PcapPacket forwardPacket=forwardFilter.exec(packet);
-				   if(forwardPacket!=null){
-					  if(otherIO!=null){
-//						  byte[] fp=forwardPacket.getByteArray(arg0, arg1);
-						  otherIO.sendPacket(forwardPacket);
-//						  otherIO.sendPacket
-					  }
-					  if(logManager!=null)
-					      synchronized(logManager){
-						          logManager.logDetail(main,forwardPacket,0);	
-					     }
-				   }
+				    queue.offer(packet);  
+					}
 				}
-			}
-		}
-		System.out.println("exitting LogOut loop");
+		} ; 
+		  
+		int rtn=pcap.loop(-1, handler, queue);  
+		System.out.println("exiting pcap.loop of if-"+interfaceNo+" due to "+rtn);    
+		pcap.close();  
 	}
 	public void start(){
 		if(me==null){
@@ -125,6 +110,7 @@ public class WanSideIO implements Runnable, ForwardInterface
 		me=null;
 		System.out.println("WanSideIO loop stop");
 		try{
+			this.pcap.breakloop();
 		    this.pcap.close();
 		}
 		catch(Exception e){
@@ -138,6 +124,10 @@ public class WanSideIO implements Runnable, ForwardInterface
     	    	System.out.println("error @ sendPacket, WanSideIO.");
     	    }
     	}
+	    if(logManager!=null)
+		      synchronized(logManager){
+			          logManager.logDetail(main,p,interfaceNo);	
+		     }
     }
     public boolean isFromOtherIf(PcapPacket p){
     	if(myIf==null) return true;
@@ -151,8 +141,16 @@ public class WanSideIO implements Runnable, ForwardInterface
 	     }
          return true;
     }
-    LogManager logManager;
-    public void setLogManager(LogManager lm){
-    	this.logManager=lm;
+	Queue<PcapPacket> queue = new ArrayBlockingQueue<PcapPacket>(10);  	
+    public Queue<PcapPacket> getPacketQueue(){
+    	return queue;
+    }
+	TrafficLogManager logManager;
+	public void setLogManager(TrafficLogManager m){
+		logManager=m;
+	}
+    int interfaceNo;
+    public void setInterfaceNo(int i){
+    	interfaceNo=i;
     }
 }

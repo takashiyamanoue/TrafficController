@@ -2,8 +2,10 @@ package pukiwikiCommunicator;
 
 import java.util.Date;
 import java.util.Hashtable;
+import java.util.Queue;
 import java.util.StringTokenizer;
 import java.util.Vector;
+import java.util.concurrent.ArrayBlockingQueue;
 
 import org.jnetpcap.PcapHeader;
 import org.jnetpcap.nio.JBuffer;
@@ -18,7 +20,7 @@ import org.jnetpcap.util.resolver.IpResolver;
 
 import pukiwikiCommunicator.PacketMonitorFilter.Filter;
 
-public class PacketFilter implements FilterInterface{
+public class PacketFilter implements FilterInterface, Runnable {
 
 public class Filter{
 	String command;
@@ -84,6 +86,7 @@ String payloadString;
 Hashtable <AddrPort, AddrPort> nat;
 public PcapPacket exec(PcapPacket p){
 	packet=p;
+	if(p==null) return p;
 	ptime=""+(new Date(packet.getCaptureHeader().timestampInMillis()));
 //	ptime=(new Date()).toString();
 		long n=packet.getFrameNumber();
@@ -482,4 +485,58 @@ String showAsciiInBinary(byte[] b){
     	  return setDnsReturn(p,ap);
       }
 */
+	Thread me;
+	@Override
+	public void run() {
+		// TODO Auto-generated method stub
+		while(me!=null){
+			if(queue!=null){
+			   PcapPacket packet=queue.poll();
+			   if(packet!=null){
+			      PcapPacket forwardPacket=this.exec(packet);
+			      if(forwardPacket!=null){
+				     if(otherIO!=null){
+//					    byte[] fp=forwardPacket.getByteArray(arg0, arg1);
+					    otherIO.sendPacket(forwardPacket);
+//					    otherIO.sendPacket
+				    }
+			     }
+			   }
+			   else{
+				   try{
+					   me.sleep(1);
+				   }
+				   catch(InterruptedException e){
+					   
+				   }
+			   }
+			}
+			else
+			{
+				try{
+					me.sleep(100);
+				}
+				catch(InterruptedException e){
+					
+				}
+			}
+		}
+	}
+	public void start(){
+		if(me==null){
+			me=new Thread(this,"PacketFilter");
+			me.start();
+		}
+	}
+	public void stop(){
+		me=null;
+	}
+	ForwardInterface otherIO;
+	public void setForwardInterface(ForwardInterface fi){
+		otherIO=fi;
+	}
+	Queue<PcapPacket> queue;
+	public void setPacketQueue(Queue<PcapPacket> q){
+		queue=q;
+	}
 }
