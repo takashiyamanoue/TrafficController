@@ -500,7 +500,7 @@ public class MainFrame extends JFrame
 		   lanSideIO = new OneSideIO(this, 
 			       networkInterfaces.elementAt(this.lanSideInterface),
 				   lanPcap,lan2Wan);
-		   lanSideIO.setInterfaceNo(1);
+		   lanSideIO.setInterfaceNo(this.lanSideInterface);
 		   lanSideIO.setLogManager(this.logManager);
 		   lanSideIO.setNewPcap(lanPcap);
 		   lanSideIO.start();
@@ -516,7 +516,7 @@ public class MainFrame extends JFrame
 		   wanSideIO = new OneSideIO(this, 
 				   networkInterfaces.elementAt(this.wanSideInterface),
 				   wanPcap,wan2Lan);
-		   wanSideIO.setInterfaceNo(0);
+		   wanSideIO.setInterfaceNo(this.wanSideInterface);
 		   wanSideIO.setLogManager(this.logManager);
 		   wanSideIO.setNewPcap(wanPcap);
 		   wan2Lan.setForwardInterface(lanSideIO);
