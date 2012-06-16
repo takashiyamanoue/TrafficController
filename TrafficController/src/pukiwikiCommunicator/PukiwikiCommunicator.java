@@ -693,14 +693,30 @@ implements PukiwikiJavaApplication, Runnable
 	Vector <String> resultVector;
 	public void writeResult(){
 		System.out.println("writeResult");
+		String x="";
 		if(this.packetMonitorFilter==null) return;
 		this.resultVector=this.packetMonitorFilter.getResults();
-		if(this.resultVector==null) return;
-		String x="";
-		for(int i=0;i<resultVector.size();i++){
-			x=x+resultVector.elementAt(i);
+		if(this.resultVector!=null) {
+		   for(int i=0;i<resultVector.size();i++){
+			  x=x+resultVector.elementAt(i);
 //			x=x+"\n";
+		   }
 		}
+		this.resultVector=this.packetFilterLan.getResults();
+		if(this.resultVector!=null) {
+		   for(int i=0;i<resultVector.size();i++){
+			   x=x+resultVector.elementAt(i);
+//			x=x+"\n";
+		   }
+		}
+		this.resultVector=this.packetFilterWan.getResults();
+		if(this.resultVector!=null) {
+		   for(int i=0;i<resultVector.size();i++){
+			  x=x+resultVector.elementAt(i);
+//			x=x+"\n";
+		   }
+		}
+		
 		this.result=x;
 		this.resultArea.setText(x);
 		if(this.onlineCommandRefreshButton.isSelected())

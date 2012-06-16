@@ -51,8 +51,10 @@ public class PacketMonitorFilter implements FilterInterface
 	   
 	Ip4 ip = new Ip4();
 	Ethernet eth = new Ethernet();
-	PcapHeader hdr = new PcapHeader(JMemory.POINTER);
-	JBuffer buf = new JBuffer(JMemory.POINTER);
+//	PcapHeader hdr = new PcapHeader(JMemory.POINTER);
+//	PcapHeader hdr = new PcapHeader();
+//	JBuffer buf = new JBuffer(JMemory.POINTER);
+//	JBuffer buf = new JBuffer(new byte[5000]);
 	Tcp tcp = new Tcp();
 	Udp udp = new Udp();
 	String sip="";
@@ -95,7 +97,12 @@ public class PacketMonitorFilter implements FilterInterface
         	protocol="tcp";
         	sport=tcp.source();
         	dport=tcp.destination();
+        	try{
         	payload=tcp.getPayload();
+        	}
+        	catch(Exception e){
+        		payload=new byte[]{'e','r','r','o','r','-','g','e','t','-','p','a','y','l','o','a','d'};
+        	}
 			String flags="-";
 			if(tcp.flags_SYN()) flags=flags+"SYN-";
 			if(tcp.flags_ACK()) flags=flags+"ACK-";

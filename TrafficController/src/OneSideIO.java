@@ -90,10 +90,10 @@ public class OneSideIO implements Runnable, ForwardInterface
 				PcapPacket permanent = new PcapPacket(packet);
 				packet.scan(id);
 //				if(isFromOtherIf(packet)){
-				if(isFromOtherIf(packet)){
-				    queue.offer(packet);  
+				if(isFromOtherIf(permanent)){
+				    queue.offer(permanent);  
 					}
-				}
+			}
 		} ; 
 		  
 		int rtn=pcap.loop(-1, handler, queue);  
@@ -143,7 +143,7 @@ public class OneSideIO implements Runnable, ForwardInterface
 	     }
          return true;
     }
-	Queue<PcapPacket> queue = new ArrayBlockingQueue<PcapPacket>(10);  	
+	Queue<PcapPacket> queue = new ArrayBlockingQueue<PcapPacket>(100);  	
     public Queue<PcapPacket> getPacketQueue(){
     	return queue;
     }
