@@ -119,7 +119,12 @@ public class PacketMonitorFilter implements FilterInterface
         	protocol="udp";
         	sport=udp.source();
         	dport=udp.destination();
-        	payload=udp.getPayload();
+        	try{
+        	payload=tcp.getPayload();
+        	}
+        	catch(Exception e){
+        		payload=new byte[]{'e','r','r','o','r','-','g','e','t','-','p','a','y','l','o','a','d'};
+        	}
         	l4String="udp "+sport+"->"+dport+" "+showAsciiInBinary(payload);
         	payloadString=showAsciiInBinary(payload);
         }

@@ -500,7 +500,7 @@ implements PukiwikiJavaApplication, Runnable
 		return x;
 	}
 	private boolean isNumber(char x){
-		if('0'<=x || x<='9') return true;
+		if('0'<=x && x<='9') return true;
 		return false;
 	}
 	private boolean isLetter(char x, char y){
@@ -509,35 +509,37 @@ implements PukiwikiJavaApplication, Runnable
 	}
 	public String getIpV4AddrFromHead(String x, String[] rest){
 		String a[]=new String[4];
+		a[0]="0"; a[1]="0"; a[2]="0"; a[3]="0";
 		String w="";
+		String[] restx=new String [1];
 		String xx=readSpaces(x);
+		String ns=parseNumbers(xx,restx);
+		int i=0;
+		if(ns.equals("")){
+			restx[0]=x;
+			return "";
+		}
+		a[i]=ns;
+		xx=restx[0];
+		i++;
 		while(true){
-		  if(xx.equals("")) break;
-		  if(xx==null) break;
-		  if(isNumber(xx.charAt(0))||isLetter(xx.charAt(0),'.')){
-			w=w+xx.charAt(0);
-			xx=xx.substring(1);
-		  }
-		  else{
-			  break;
-		  }
-		}
-		StringTokenizer st=new StringTokenizer(w,".");
-		for(int i=0;st.hasMoreElements();i++){
-			a[i]=st.nextToken();
-			if(!(a[i].equals("*"))){
-			   int ax=(new Integer(a[i])).intValue();
-			   String rtn=a[i];
-			   if(ax<0) rtn= "";
-			   if(ax>255) rtn= "";
-			   if(rtn.equals("")) {
-				   rest[0]=x;
-				   return null;
-			   }
+			String px=parseString(".",xx,restx);
+			if(px.equals("")) break;
+			xx=restx[0];
+			String n=parseNumbers(xx,restx);
+			if(n.equals("")) {
+				n=parseString("*",xx,restx);
+				if(n.equals("")){
+					break;
+				}
 			}
+			xx=restx[0];
+			a[i]=n;
+			i++;
 		}
+
 		rest[0]=xx;
-		return w;
+		return a[0]+"."+a[1]+"."+a[2]+"."+a[3];
 	}
 	public String getNumberFromHead(String x, String[] rest){
 		String a[]=new String[4];
@@ -576,6 +578,32 @@ implements PukiwikiJavaApplication, Runnable
 			rtn=rtn+c;
 			i++;
 			c=w.charAt(i);
+		}
+		return rtn;
+	}
+	public String parseNumbers(String x,String[] w){
+		String rtn="";
+		while(true){
+			if(x==null) break;
+			if(x.equals("")) break;
+			char c=x.charAt(0);
+			if(isNumber(c)){
+			   rtn=rtn+c;
+			   x=x.substring(1);
+			}
+			else{
+				break;
+			}
+		}
+		w[0]=x;
+		return rtn;
+		
+	}
+	public String parseString(String c,String x, String[] w){
+		String rtn="";
+		if(x.startsWith(c)){
+			w[0]=x.substring(c.length());
+			rtn=c;
 		}
 		return rtn;
 	}
@@ -618,6 +646,46 @@ implements PukiwikiJavaApplication, Runnable
 			}
 			if(f!=null){
 			   f.addFilter(command+" ip=",args);
+			}
+			return true;
+		}
+		if(y.startsWith("sip=")){
+			y=y.substring("sip=".length());
+			String w=readSpaces(y);
+			String [] rest=new String[1];
+			String ipa=getIpV4AddrFromHead(w,rest);
+			if(ipa==null){
+				ipa="0.0.0.0";
+			}
+			String[] args=new String[3];
+			args[0]=ipa;
+			w=readSpaces(rest[0]);
+			if(w.equals("")){
+			}
+			else
+			if(w.startsWith("to ")){
+				w=w.substring("to ".length());
+				w=readSpaces(w);
+				String ipb=getIpV4AddrFromHead(w,rest);
+				if(ipb==null){
+					ipb="0.0.0.0";
+				}
+				args[1]=ipb;
+				w=readSpaces(rest[0]);
+				if(w.startsWith(":")){
+					w=w.substring(":".length());
+					w=readSpaces(w);
+					String port=getNumberFromHead(w,rest);
+					if(port==null){
+						port="0";
+					}
+					args[2]=port;
+				}
+				else{
+				}
+			}
+			if(f!=null){
+			   f.addFilter(command+" sip=",args);
 			}
 			return true;
 		}

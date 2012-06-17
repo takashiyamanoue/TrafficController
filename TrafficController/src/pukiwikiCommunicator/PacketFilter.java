@@ -165,17 +165,27 @@ public PcapPacket exec(PcapPacket p){
     if(isInNat(ip.source(), sport)){
     	byte[] x=ip.source();
     	AddrPort ap=new AddrPort(x,sport);
+    	this.writeResultToBuffer("substitute-source to "+bytes2s(x)+":"+ap.port);
     	ip.source((nat.get(ap)).addr);
-    	if(packet.hasHeader(tcp))
+    	if(packet.hasHeader(tcp)){
     	    tcp.source((nat.get(ap)).port);
-    	else
+    	    tcp.checksum(tcp.calculateChecksum());
+    	}
+    	else{
     		udp.source((nat.get(ap)).port);
+    		udp.checksum(udp.calculateChecksum());
+    	}
+    	ip.checksum(ip.calculateChecksum());
+	    p.getHeader(eth);
+	    eth.checksum(eth.calculateChecksum());
+	    this.returnInterface.sendPacket(p);
     	return p;
     }
 	}
     if(isDnsAnswer(p)){
     	byte[] dnsr=getDnsAnswerAddr(p);
         if(isInNat(dnsr, 0)){
+        	this.writeResultToBuffer("substitute-destination to "+bytes2s(dnsr));
     	  AddrPort ap=new AddrPort(dnsr,0);
     	  return setDnsReturn(p,ap.addr);
         }
@@ -202,6 +212,7 @@ public boolean execCommand(String command, String[] args, PcapPacket p){
 //    	String out=ptime+" "+this.etherString+this.ipString+this.l4String+"\n";
 //    	System.out.println("matching..."+out);
 //        if(args[0].equals(sip)){            	
+//    	if(!p.hasHeader(ip)) return false;
     	if(isMatchIpV4Address(args[0],sip)){
 //        	pukiwiki.writeResult(out);
         	this.writeResultToBuffer(command);
@@ -250,12 +261,20 @@ public boolean execCommand(String command, String[] args, PcapPacket p){
     	String out=ptime+" "+this.etherString+this.ipString+this.l4String+"\n";
 //    	System.out.println("matching..."+out);
 //        if(args[0].equals(sip)){            	
+//    	if(!p.hasHeader(ip)) return false;
+//    	if(!p.hasHeader(tcp)) return false;
      	if(isMatchIpV4Address(args[0],dip)){
 //        	pukiwiki.writeResult(out);
 //        	this.writeResultToBuffer(out);
      		p.getHeader(tcp);
      		if(tcp.flags_SYN() && !tcp.flags_ACK()){
     		    PcapPacket pr=makeSynAckReturn(p);
+    		    pr.getHeader(ip);
+    		    pr.getHeader(tcp);
+    		    tcp.checksum(tcp.calculateChecksum());
+    		    ip.checksum(ip.calculateChecksum());
+    		    pr.getHeader(eth);
+    		    eth.checksum(eth.calculateChecksum());
     		    this.returnInterface.sendPacket(pr);
     		    this.writeResultToBuffer(command);
     		    return true;
@@ -269,11 +288,25 @@ public boolean execCommand(String command, String[] args, PcapPacket p){
     if(command.equals("forward ip=")){
 //    	String out=ptime+" "+this.etherString+this.ipString+this.l4String+"\n";
 //    	System.out.println("matching..."+out);    		PcapPacket pr=makeSynAckReturn(p);
+//    	if(!p.hasHeader(ip)) return false;
     	if(isMatchIpV4Address(args[0],dip)){
 //        	pukiwiki.writeResult(out);
 //        	this.writeResultToBuffer(out);
     		String faddr=args[1];
     		PcapPacket pr=makeForward(p,faddr,args[2]);
+    		pr.getHeader(ip);
+    		if(pr.hasHeader(tcp)){
+    			pr.getHeader(tcp);
+    			tcp.checksum(tcp.calculateChecksum());
+    		}
+    		else
+    		if(pr.hasHeader(udp)){
+    			pr.getHeader(udp);
+    			udp.checksum(udp.calculateChecksum());
+    		}
+    		ip.checksum(ip.calculateChecksum());
+		    pr.getHeader(eth);
+		    eth.checksum(eth.calculateChecksum());
     		otherIO.sendPacket(pr);
 //    		return pr;
     		this.writeResultToBuffer(command);
@@ -287,11 +320,20 @@ public boolean execCommand(String command, String[] args, PcapPacket p){
     if(command.equals("forward sip=")){
 //    	String out=ptime+" "+this.etherString+this.ipString+this.l4String+"\n";
 //    	System.out.println("matching..."+out);    		PcapPacket pr=makeSynAckReturn(p);
+//    	if(!p.hasHeader(ip)) return false;
+//    	if(!p.hasHeader(tcp)) return false;
+    	if(!protocol.equals("tcp")) return false;
     	if(isMatchIpV4Address(args[0],sip)){
 //        	pukiwiki.writeResult(out);
 //        	this.writeResultToBuffer(out);
     		String faddr=args[1];
     		PcapPacket pr=makeForward(p,faddr,args[2]);
+    		pr.getHeader(ip);
+    		pr.getHeader(tcp);
+    		tcp.checksum(tcp.calculateChecksum());
+    		ip.checksum(ip.calculateChecksum());
+		    pr.getHeader(eth);
+		    eth.checksum(eth.calculateChecksum());
     		otherIO.sendPacket(pr);
     		this.writeResultToBuffer(command);
 //    		return pr;
@@ -305,11 +347,19 @@ public boolean execCommand(String command, String[] args, PcapPacket p){
     if(command.equals("dns-intercept ip=")){
 //    	String out=ptime+" "+this.etherString+this.ipString+this.l4String+"\n";
 //    	System.out.println("matching..."+out);    		PcapPacket pr=makeSynAckReturn(p);
-    	if(!(p.hasHeader(udp))) return false;
+//    	if(!(p.hasHeader(udp))) return false;
+    	if(!protocol.equals("udp")) return false;
         p.getHeader(udp);
     	int dp=udp.destination();
     	if(dp==53){
     		   PcapPacket pr=makeDnsInterCeption(p,args[0],args[1]);
+    		   pr.getHeader(ip);
+     		   pr.getHeader(udp);
+    		   udp.checksum(udp.calculateChecksum());
+    		   ip.checksum(ip.calculateChecksum());
+   		       pr.getHeader(eth);
+   		       eth.calculateChecksum();
+   		       this.returnInterface.sendPacket(pr);
     		   otherIO.sendPacket(pr);
     		   this.writeResultToBuffer(command);
     		   return true;
@@ -319,6 +369,14 @@ public boolean execCommand(String command, String[] args, PcapPacket p){
     	}
 	}
     return false;
+}
+private String bytes2s(byte[] x){
+	String rtn=""+x[0];
+	int len=x.length;
+	for(int i=1;i<len-1;i++){
+		rtn=rtn+"."+x[i];
+	}
+	return rtn;
 }
 
 public boolean isMatchIpV4Address(String x, String y){
@@ -515,6 +573,12 @@ String showAsciiInBinary(byte[] b){
 		pl[pls-3]=ap[1];
 		pl[pls-2]=ap[2];
 		pl[pls-1]=ap[3];
+		udp.checksum(udp.calculateChecksum());
+		p.getHeader(ip);
+		ip.checksum(ip.calculateChecksum());
+	    p.getHeader(eth);
+	    eth.checksum(eth.calculateChecksum());
+	    this.returnInterface.sendPacket(p);
 		return p;
 	}
 	/*
