@@ -88,7 +88,12 @@ public class OneSideIO implements Runnable, ForwardInterface
 					JScanner.getThreadLocal().setFrameNumber(0);  
 				}
 				PcapPacket permanent = new PcapPacket(packet);
-				packet.scan(id);
+				try{
+				permanent.scan(id);
+				}
+				catch(Exception e){
+					return;
+				}
 //				if(isFromOtherIf(packet)){
 				if(isFromOtherIf(permanent)){
 				    queue.offer(permanent);  
@@ -119,16 +124,17 @@ public class OneSideIO implements Runnable, ForwardInterface
 		}
 	}
     public void sendPacket(PcapPacket p){
-//    	PcapPacket px=new PcapPacket(p);
+    	PcapPacket px=new PcapPacket(p);
     	synchronized(pcap){
-//    	    if(this.pcap.sendPacket(px)!=Pcap.OK){
-    		if(this.pcap.sendPacket(p)!=Pcap.OK){
+    	    if(this.pcap.sendPacket(px)!=Pcap.OK){
+//    		if(this.pcap.sendPacket(p)!=Pcap.OK){
     	    	System.out.println("error @ sendPacket, WanSideIO.");
     	    }
     	}
 	    if(logManager!=null)
 		      synchronized(logManager){
-			          logManager.logDetail(main,p,interfaceNo);	
+//			          logManager.logDetail(main,p,interfaceNo);	
+		    	  logManager.logDetail(main, px, interfaceNo);
 		     }
     }
     public boolean isFromOtherIf(PcapPacket p){

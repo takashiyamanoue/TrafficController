@@ -59,9 +59,11 @@ public void addFilter(String cmd, String[] args){
 	Filter f=new Filter(cmd, args);
 	filters.add(f);
 }
+/*
 public Filter elementAt(int i){
 	return filters.elementAt(i);
 }
+*/
    
 Ip4 ip = new Ip4();
 Ethernet eth = new Ethernet();
@@ -84,7 +86,7 @@ String ptime="";
 byte[] payload;
 String payloadString;
 Hashtable <AddrPort, AddrPort> nat;
-public PcapPacket exec(PcapPacket p){
+private PcapPacket exec(PcapPacket p){
 	packet=p;
 	if(p==null) return p;
 	ptime=""+(new Date(packet.getCaptureHeader().timestampInMillis()));
@@ -162,34 +164,34 @@ public PcapPacket exec(PcapPacket p){
 		}
 	}
 	if(packet.hasHeader(ip)){
-    if(isInNat(ip.source(), sport)){
-    	byte[] x=ip.source();
-    	AddrPort ap=new AddrPort(x,sport);
-    	this.writeResultToBuffer("substitute-source to "+bytes2s(x)+":"+ap.port);
-    	ip.source((nat.get(ap)).addr);
-    	if(packet.hasHeader(tcp)){
-    	    tcp.source((nat.get(ap)).port);
-    	    tcp.checksum(tcp.calculateChecksum());
-    	}
-    	else{
-    		udp.source((nat.get(ap)).port);
-    		udp.checksum(udp.calculateChecksum());
-    	}
-    	ip.checksum(ip.calculateChecksum());
-	    p.getHeader(eth);
-	    eth.checksum(eth.calculateChecksum());
-	    this.returnInterface.sendPacket(p);
-    	return p;
-    }
-	}
-    if(isDnsAnswer(p)){
-    	byte[] dnsr=getDnsAnswerAddr(p);
-        if(isInNat(dnsr, 0)){
-        	this.writeResultToBuffer("substitute-destination to "+bytes2s(dnsr));
-    	  AddrPort ap=new AddrPort(dnsr,0);
-    	  return setDnsReturn(p,ap.addr);
+        if(isInNat(ip.source(), sport)){
+    	   byte[] x=ip.source();
+    	   AddrPort ap=new AddrPort(x,sport);
+    	   this.writeResultToBuffer("substitute-source to "+bytes2s(x)+":"+ap.port);
+    	   ip.source((nat.get(ap)).addr);
+    	   if(packet.hasHeader(tcp)){
+    	      tcp.source((nat.get(ap)).port);
+    	      tcp.checksum(tcp.calculateChecksum());
+    	   }
+    	   else{
+    		  udp.source((nat.get(ap)).port);
+    		  udp.checksum(udp.calculateChecksum());
+    	   }
+    	   ip.checksum(ip.calculateChecksum());
+	       p.getHeader(eth);
+	       eth.checksum(eth.calculateChecksum());
+	       this.returnInterface.sendPacket(p);
+    	   return p;
         }
-    }
+        if(isDnsAnswer(p)){
+    	   byte[] dnsr=getDnsAnswerAddr(p);
+           if(isInNat(dnsr, 0)){
+        	  this.writeResultToBuffer("substitute-destination to "+bytes2s(dnsr));
+    	   AddrPort ap=new AddrPort(dnsr,0);
+    	   return setDnsReturn(p,ap.addr);
+        }
+      }
+	}
 	return p;
 }
 private boolean isInNat(byte[] x, int y){
@@ -199,7 +201,7 @@ private boolean isInNat(byte[] x, int y){
 	else return true;
 }
 
-public boolean execCommand(String command, String[] args, PcapPacket p){
+private boolean execCommand(String command, String[] args, PcapPacket p){
 //    System.out.println("ex. "+command);
 	/*
     for(int i=0;i<args.length;i++){
@@ -379,7 +381,7 @@ private String bytes2s(byte[] x){
 	return rtn;
 }
 
-public boolean isMatchIpV4Address(String x, String y){
+private boolean isMatchIpV4Address(String x, String y){
 //	String ax[]=new String[4];
 //	String ay[]=new String[4];
 	StringTokenizer stx=new StringTokenizer(x,".");
@@ -409,7 +411,7 @@ public void clear(){
 }
 Vector <String> resultQueue;
 int resultQueueMax=10;
-public void writeResultToBuffer(String x){
+private void writeResultToBuffer(String x){
 	String out=ptime+" "+x+" "+this.etherString+this.ipString+this.l4String+"\n";
 	if(resultQueue==null) return;
 	resultQueue.add(out);
@@ -436,7 +438,7 @@ char[] asciis=new char[]{
 		' ','!','"','#','$','%','&','\'','(',')',
 		'=','-','+','*','/','~','^','|','{','}',
 		'[',']','<','>','?',';',':','.',',','@'};
-String showAsciiInBinary(byte[] b){
+private String showAsciiInBinary(byte[] b){
 	String rtn="";
 	for(int i=0;i<80;i++){
 		if(i>=b.length) return rtn;
@@ -522,20 +524,7 @@ String showAsciiInBinary(byte[] b){
 		}
         return b;
    }
-	public String readSpaces(String x){
-		while(x.startsWith(" ")){
-			x=x.substring(" ".length());
-		}
-		return x;
-	}
-	private boolean isNumber(char x){
-		if('0'<=x || x<='9') return true;
-		return false;
-	}
-	private boolean isLetter(char x, char y){
-		if(x==y) return true;
-		return false;
-	}
+
 	public void setNatA(AddrPort a, AddrPort b){
 	   if(this.nat!=null){
 		   nat.put(a, b);
