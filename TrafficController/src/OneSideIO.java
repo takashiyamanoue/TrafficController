@@ -97,7 +97,7 @@ public class OneSideIO implements Runnable, ForwardInterface
 //				if(isFromOtherIf(packet)){
 				if(isFromOtherIf(permanent)){
 				    queue.offer(permanent);  
-					}
+				}
 			}
 		} ; 
 		  

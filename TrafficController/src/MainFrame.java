@@ -95,8 +95,8 @@ public class MainFrame extends JFrame
 		this.loadProperties();
 		this.pukiwikiCommunicator=new PukiwikiCommunicator(mainTabPane,this.setting);
 		this.packetMonitorFilter=new PacketMonitorFilter(pukiwikiCommunicator);
-		this.lan2Wan=new PacketFilter(pukiwikiCommunicator);
-		this.wan2Lan=new PacketFilter(pukiwikiCommunicator);
+		this.lan2Wan=new PacketFilter(pukiwikiCommunicator,"lan2Wan");
+		this.wan2Lan=new PacketFilter(pukiwikiCommunicator,"wan2Lan");
 		pukiwikiCommunicator.setPacketFilterLan(lan2Wan);
 		pukiwikiCommunicator.setPacketFilterWan(wan2Lan);
 		
