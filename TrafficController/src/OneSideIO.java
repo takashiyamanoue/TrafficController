@@ -126,8 +126,8 @@ public class OneSideIO implements Runnable, ForwardInterface
     public void sendPacket(PcapPacket p){
     	PcapPacket px=new PcapPacket(p);
     	synchronized(pcap){
-    	    if(this.pcap.sendPacket(px)!=Pcap.OK){
-//    		if(this.pcap.sendPacket(p)!=Pcap.OK){
+//    	    if(this.pcap.sendPacket(px)!=Pcap.OK){
+    		if(this.pcap.sendPacket(p)!=Pcap.OK){
     	    	System.out.println("error @ sendPacket, WanSideIO.");
     	    }
     	}

@@ -37,12 +37,11 @@ public class Filter{
 	}
 }
 
-public class AddrPort{
-	public byte[] addr;
-	public int port;
-	public AddrPort(byte[] a, int p){
-		addr=a; port=p;
-	}
+public String addrPort(byte[] a, int p){
+    String as=bytes2s(a);
+	as=as+":";
+	as=as+p;
+	return as;
 }
 
 private Vector <Filter> filters;
@@ -85,13 +84,14 @@ String l4String="";
 String ptime="";
 byte[] payload;
 String payloadString;
-Hashtable <AddrPort, AddrPort> nat;
+Hashtable <String, String> nat;
 private PcapPacket exec(PcapPacket p){
 	packet=p;
 	if(p==null) return p;
 	ptime=""+(new Date(packet.getCaptureHeader().timestampInMillis()));
 //	ptime=(new Date()).toString();
-		long n=packet.getFrameNumber();
+	long n=packet.getFrameNumber();
+	try{	
 	if (packet.hasHeader(eth)) {
 		packet.getHeader(eth);
 		smac = FormatUtils.mac(eth.source());
@@ -111,6 +111,9 @@ private PcapPacket exec(PcapPacket p){
 	else{
 		
 	}
+	}
+	catch(Exception e){System.out.println("packet error eth or ip:"+e); return null; };
+	try{
     if(packet.hasHeader(tcp)){
     	packet.getHeader(tcp);
     	protocol="tcp";
@@ -153,6 +156,11 @@ private PcapPacket exec(PcapPacket p){
     else{
     	
     }
+	}
+	catch(Exception e){
+		System.out.println("packet error tcp/udp :"+e);
+		return null;
+	}
 	for(int i=0;i<filters.size();i++){
 		Filter f=filters.elementAt(i);
 		boolean rtn=execCommand(f.getCommand(),f.getArgs(), p);
@@ -165,38 +173,21 @@ private PcapPacket exec(PcapPacket p){
 	}
 	if(packet.hasHeader(ip)){
         if(isInNat(ip.source(), sport)){
-    	   byte[] x=ip.source();
-    	   AddrPort ap=new AddrPort(x,sport);
-    	   this.writeResultToBuffer("substitute-source to "+bytes2s(x)+":"+ap.port);
-    	   ip.source((nat.get(ap)).addr);
-    	   if(packet.hasHeader(tcp)){
-    	      tcp.source((nat.get(ap)).port);
-    	      tcp.checksum(tcp.calculateChecksum());
-    	   }
-    	   else{
-    		  udp.source((nat.get(ap)).port);
-    		  udp.checksum(udp.calculateChecksum());
-    	   }
-    	   ip.checksum(ip.calculateChecksum());
-	       p.getHeader(eth);
-	       eth.checksum(eth.calculateChecksum());
-	       this.returnInterface.sendPacket(p);
-    	   return p;
+        	return restoreNatedPacket(packet);
         }
-        if(isDnsAnswer(p)){
-    	   byte[] dnsr=getDnsAnswerAddr(p);
+        if(isDnsAnswer(packet)){
+    	   byte[] dnsr=getDnsAnswerAddr(packet);
            if(isInNat(dnsr, 0)){
         	  this.writeResultToBuffer("substitute-destination to "+bytes2s(dnsr));
-    	   AddrPort ap=new AddrPort(dnsr,0);
-    	   return setDnsReturn(p,ap.addr);
+    	      return setDnsReturn(packet,dnsr);
+           }
         }
-      }
 	}
 	return p;
 }
 private boolean isInNat(byte[] x, int y){
-	AddrPort ap=new AddrPort(x,y);
-	AddrPort rtn=nat.get(ap);
+	String ap=addrPort(x,y);
+	String rtn=nat.get(ap);
 	if(rtn==null) return false;
 	else return true;
 }
@@ -211,48 +202,27 @@ private boolean execCommand(String command, String[] args, PcapPacket p){
 //    System.out.println("\n");
 	PcapPacket rtn=null;
     if(command.equals("drop ip=")){
-//    	String out=ptime+" "+this.etherString+this.ipString+this.l4String+"\n";
-//    	System.out.println("matching..."+out);
-//        if(args[0].equals(sip)){            	
-//    	if(!p.hasHeader(ip)) return false;
     	if(isMatchIpV4Address(args[0],sip)){
-//        	pukiwiki.writeResult(out);
         	this.writeResultToBuffer(command);
-//        	return null;
         	return true;
         }
-//        if(args[0].equals(dip)){
     	if(isMatchIpV4Address(args[0],dip)){
-//        	pukiwiki.writeResult(out);
         	this.writeResultToBuffer(command);
-//        	return null;
         	return true;
         }
-//    	return p;
     	return false;
 	}
     if(command.equals("drop includes ")){
-//    	String out=ptime+" "+this.etherString+this.ipString+this.l4String+"\n";
-//    	System.out.println("matching..."+out);
-//        if(args[0].equals(sip)){            	
     	if(0<=l4String.indexOf(args[0])){
-//        	pukiwiki.writeResult(out);
         	this.writeResultToBuffer(command);
-//        	return null;
         	return true;
         }
     	else
-//    	return p;
     	    return false;
 	}
     if(command.equals("drop startsWith ")){
-//    	String out=ptime+" "+this.etherString+this.ipString+this.l4String+"\n";
-//    	System.out.println("matching...startsWith "+payloadString+ " and "+args[0]);
-//        if(args[0].equals(sip)){            	
     	if(payloadString.startsWith(args[0])){
-//        	pukiwiki.writeResult(out);
         	this.writeResultToBuffer(command);
-//        	return null;
         	return true;
         }
     	else
@@ -260,108 +230,56 @@ private boolean execCommand(String command, String[] args, PcapPacket p){
     		return false;
 	}
     if(command.equals("return-syn-ack ip=")){
-    	String out=ptime+" "+this.etherString+this.ipString+this.l4String+"\n";
-//    	System.out.println("matching..."+out);
-//        if(args[0].equals(sip)){            	
-//    	if(!p.hasHeader(ip)) return false;
-//    	if(!p.hasHeader(tcp)) return false;
      	if(isMatchIpV4Address(args[0],dip)){
-//        	pukiwiki.writeResult(out);
-//        	this.writeResultToBuffer(out);
-     		p.getHeader(tcp);
-     		if(tcp.flags_SYN() && !tcp.flags_ACK()){
-    		    PcapPacket pr=makeSynAckReturn(p);
-    		    pr.getHeader(ip);
-    		    pr.getHeader(tcp);
-    		    tcp.checksum(tcp.calculateChecksum());
-    		    ip.checksum(ip.calculateChecksum());
-    		    pr.getHeader(eth);
-    		    eth.checksum(eth.calculateChecksum());
-    		    this.returnInterface.sendPacket(pr);
-    		    this.writeResultToBuffer(command);
-    		    return true;
-     	    }
-//        	return null;
+     		if(packet.hasHeader(tcp)){
+     		    packet.getHeader(tcp);
+     		    if(tcp.flags_SYN() && !tcp.flags_ACK()){
+    		       PcapPacket pr=makeSynAckReturn(p);
+    		       this.returnInterface.sendPacket(pr);
+    		       this.writeResultToBuffer(command);
+    		       return true;
+     	        }
+     		    return false;
+            }
      		return false;
-        }
+     	}
 //    	return p;
      	return false;
 	}
     if(command.equals("forward ip=")){
-//    	String out=ptime+" "+this.etherString+this.ipString+this.l4String+"\n";
-//    	System.out.println("matching..."+out);    		PcapPacket pr=makeSynAckReturn(p);
-//    	if(!p.hasHeader(ip)) return false;
     	if(isMatchIpV4Address(args[0],dip)){
-//        	pukiwiki.writeResult(out);
-//        	this.writeResultToBuffer(out);
     		String faddr=args[1];
     		PcapPacket pr=makeForward(p,faddr,args[2]);
-    		pr.getHeader(ip);
-    		if(pr.hasHeader(tcp)){
-    			pr.getHeader(tcp);
-    			tcp.checksum(tcp.calculateChecksum());
-    		}
-    		else
-    		if(pr.hasHeader(udp)){
-    			pr.getHeader(udp);
-    			udp.checksum(udp.calculateChecksum());
-    		}
-    		ip.checksum(ip.calculateChecksum());
-		    pr.getHeader(eth);
-		    eth.checksum(eth.calculateChecksum());
+            if(pr==null) return true;
     		otherIO.sendPacket(pr);
-//    		return pr;
     		this.writeResultToBuffer(command);
     		return true;
         }
     	else{
-//    		return p;
     		return false;
     	}
 	}
     if(command.equals("forward sip=")){
-//    	String out=ptime+" "+this.etherString+this.ipString+this.l4String+"\n";
-//    	System.out.println("matching..."+out);    		PcapPacket pr=makeSynAckReturn(p);
-//    	if(!p.hasHeader(ip)) return false;
-//    	if(!p.hasHeader(tcp)) return false;
     	if(!protocol.equals("tcp")) return false;
     	if(isMatchIpV4Address(args[0],sip)){
-//        	pukiwiki.writeResult(out);
-//        	this.writeResultToBuffer(out);
     		String faddr=args[1];
     		PcapPacket pr=makeForward(p,faddr,args[2]);
-    		pr.getHeader(ip);
-    		pr.getHeader(tcp);
-    		tcp.checksum(tcp.calculateChecksum());
-    		ip.checksum(ip.calculateChecksum());
-		    pr.getHeader(eth);
-		    eth.checksum(eth.calculateChecksum());
+    		if(pr==null) return true;
     		otherIO.sendPacket(pr);
     		this.writeResultToBuffer(command);
-//    		return pr;
     		return true;
         }
     	else{
-//    		return p;
     		return false;
     	}
 	}
     if(command.equals("dns-intercept ip=")){
-//    	String out=ptime+" "+this.etherString+this.ipString+this.l4String+"\n";
-//    	System.out.println("matching..."+out);    		PcapPacket pr=makeSynAckReturn(p);
-//    	if(!(p.hasHeader(udp))) return false;
     	if(!protocol.equals("udp")) return false;
         p.getHeader(udp);
     	int dp=udp.destination();
     	if(dp==53){
     		   PcapPacket pr=makeDnsInterCeption(p,args[0],args[1]);
-    		   pr.getHeader(ip);
-     		   pr.getHeader(udp);
-    		   udp.checksum(udp.calculateChecksum());
-    		   ip.checksum(ip.calculateChecksum());
-   		       pr.getHeader(eth);
-   		       eth.calculateChecksum();
-   		       this.returnInterface.sendPacket(pr);
+    		   if(pr==null) return true;
     		   otherIO.sendPacket(pr);
     		   this.writeResultToBuffer(command);
     		   return true;
@@ -459,10 +377,15 @@ private String showAsciiInBinary(byte[] b){
 	   anotherSideFilter=f;
    }
    private PcapPacket makeSynAckReturn(PcapPacket p){
-	   p.getHeader(tcp);
+	   Ethernet eth=new Ethernet();
+	   Ip4 ip = new Ip4();
+	   Tcp tcp = new Tcp();
+       PcapPacket px=new PcapPacket(p);
+	   px.getHeader(eth);
+	   px.getHeader(ip);
+	   px.getHeader(tcp);
 	   tcp.flags_SYN(true);
 	   tcp.flags_ACK(true);
-	   p.getHeader(ip);
 	   byte [] sao=ip.source();
 	   byte [] dao=ip.destination();
 	   byte [] sa=new byte[sao.length];
@@ -475,41 +398,99 @@ private String showAsciiInBinary(byte[] b){
 	   ip.destination(sa);
 	   tcp.source(dp);
 	   tcp.destination(sp);
-	   return p;
+	   tcp.checksum(tcp.calculateChecksum());
+	   ip.checksum(ip.calculateChecksum());
+	   eth.checksum(eth.calculateChecksum());
+	   return px;
    }
    private PcapPacket makeDnsInterCeption(PcapPacket p, String oaddr, String newAddr){
-	   byte[] da=s2byte(oaddr);
-	   byte[] na=s2byte(newAddr);
 	   if(this.anotherSideFilter!=null){
-		   AddrPort a=new AddrPort(da,0);
-		   AddrPort b=new AddrPort(na,0);
+		   Ethernet eth=new Ethernet();
+		   Ip4 ip = new Ip4();
+		   Udp udp = new Udp();
+		   PcapPacket px=new PcapPacket(p);
+		   px.getHeader(eth);
+		   px.getHeader(ip);
+		   byte[] da=s2byte(oaddr);
+		   byte[] na=s2byte(newAddr);
+		   String a=addrPort(da,0);
+		   String b=addrPort(na,0);
 		   anotherSideFilter.setNatA(a, b);		   
+ 		   px.getHeader(udp);
+		   udp.checksum(udp.calculateChecksum());
+		   ip.checksum(ip.calculateChecksum());
+		   eth.checksum(eth.calculateChecksum());
+		   return px;
 	   }
-	   return p;
+	   return null;
    }
    private PcapPacket makeForward(PcapPacket p, String faddr, String port){
-	   p.getHeader(ip);
-	   byte[] da=s2byte(faddr);
-	   byte[] oa=ip.destination();
-	   int dp=(new Integer(port)).intValue();
-	   int op=0;
-	   if(p.hasHeader(tcp)){
-		   op=tcp.source();
-		   p.getHeader(tcp);
-	       tcp.destination(dp);		   
+	   if(p.hasHeader(ip)){
+		   Ethernet eth=new Ethernet();
+		   Ip4 ip = new Ip4();
+		   Tcp tcp = new Tcp();
+		   Udp udp = new Udp();
+		   PcapPacket px=new PcapPacket(p);
+		   px.getHeader(eth);
+		   px.getHeader(ip);
+	       byte[] da=s2byte(faddr);
+	       byte[] oa=ip.destination();
+	       int dp=(new Integer(port)).intValue();
+	       int op=0;
+	       if(px.hasHeader(tcp)){
+		       op=tcp.source();
+		       px.getHeader(tcp);
+	           tcp.destination(dp);		   
+	   		   tcp.checksum(tcp.calculateChecksum());
+	       }
+	       else{
+		       op=udp.source();
+		       px.getHeader(udp);
+	           udp.destination(dp);		   
+	   		   udp.checksum(udp.calculateChecksum());
+	       }
+	       ip.destination(da);
+	       if(this.anotherSideFilter!=null){
+		       String a=addrPort(da,dp);
+		       String b=addrPort(oa,op);
+		       anotherSideFilter.setNatA(a, b);
+	       }
+   		   ip.checksum(ip.calculateChecksum());
+		   eth.checksum(eth.calculateChecksum());
+	       return px;
 	   }
-	   else{
-		   op=udp.source();
-		   p.getHeader(udp);
-	       udp.destination(dp);		   
+	   return null;
+   }
+   private PcapPacket restoreNatedPacket(PcapPacket p){
+	   Ethernet eth=new Ethernet();
+	   Ip4 ip = new Ip4();
+	   Tcp tcp = new Tcp();
+	   Udp udp = new Udp();
+	   PcapPacket px=new PcapPacket(p);
+	   px.getHeader(eth);
+	   px.getHeader(ip);
+	   byte[] x=ip.source();
+	   String ap=addrPort(x,sport);
+	   this.writeResultToBuffer("substitute-source to "+bytes2s(x)+":"+sport);
+	   byte[] apa=getAddressPartOfAP(ap);
+	   ip.source(apa);
+	   if(px.hasHeader(tcp)){
+		   px.getHeader(tcp);
+		   int app=getPortPartOfAP(ap);
+	       tcp.source(app);
+	       tcp.checksum(tcp.calculateChecksum());
 	   }
-	   ip.destination(da);
-	   if(this.anotherSideFilter!=null){
-		   AddrPort a=new AddrPort(da,dp);
-		   AddrPort b=new AddrPort(oa,op);
-		   anotherSideFilter.setNatA(a, b);
+	   else
+	   if(px.hasHeader(udp))
+	   {
+		   px.getHeader(udp);
+		   int app=getPortPartOfAP(ap);
+		   udp.source(app);
+		   udp.checksum(udp.calculateChecksum());
 	   }
-	   return p;
+	   ip.checksum(ip.calculateChecksum());
+       eth.checksum(eth.calculateChecksum());
+	   return px;	   
    }
    private byte[] s2byte(String x){
 	   String a="";
@@ -525,7 +506,7 @@ private String showAsciiInBinary(byte[] b){
         return b;
    }
 
-	public void setNatA(AddrPort a, AddrPort b){
+	public void setNatA(String a, String b){
 	   if(this.nat!=null){
 		   nat.put(a, b);
 	   }
@@ -553,22 +534,26 @@ private String showAsciiInBinary(byte[] b){
 	}
 	private PcapPacket setDnsReturn(PcapPacket p, byte[] ap){
 		if(!p.hasHeader(udp)) return null;
-		p.getHeader(udp);
-		int sp=udp.source();
-		if(sp!=53) return null;  //DNS
-		byte[] pl=udp.getPayload();
-		int pls=pl.length;
-		pl[pls-4]=ap[0];
-		pl[pls-3]=ap[1];
-		pl[pls-2]=ap[2];
-		pl[pls-1]=ap[3];
-		udp.checksum(udp.calculateChecksum());
-		p.getHeader(ip);
-		ip.checksum(ip.calculateChecksum());
-	    p.getHeader(eth);
-	    eth.checksum(eth.calculateChecksum());
-	    this.returnInterface.sendPacket(p);
-		return p;
+		   Ethernet eth=new Ethernet();
+		   Ip4 ip = new Ip4();
+		   Tcp tcp = new Tcp();
+		   Udp udp = new Udp();
+		   PcapPacket px=new PcapPacket(p);
+		   px.getHeader(eth);
+		   px.getHeader(ip);
+		   px.getHeader(udp);
+		   int sp=udp.source();
+		   if(sp!=53) return null;  //DNS
+		   byte[] pl=udp.getPayload();
+		   int pls=pl.length;
+		   pl[pls-4]=ap[0];
+		   pl[pls-3]=ap[1];
+		   pl[pls-2]=ap[2];
+		   pl[pls-1]=ap[3];
+		   udp.checksum(udp.calculateChecksum());
+		   ip.checksum(ip.calculateChecksum());
+	       eth.checksum(eth.calculateChecksum());
+		   return px;
 	}
 	/*
     if(isDnsAnswer(p)){
@@ -631,5 +616,23 @@ private String showAsciiInBinary(byte[] b){
 	Queue<PcapPacket> queue;
 	public void setPacketQueue(Queue<PcapPacket> q){
 		queue=q;
+	}
+	
+	private byte[] getAddressPartOfAP(String ap){
+		byte[] rtn=new byte[4];
+		StringTokenizer st=new StringTokenizer(ap,".:");
+		for(int i=0;i<4;i++){
+			int x=(new Integer(st.nextToken())).intValue();
+			rtn[i]=(byte)x;
+		}
+		return rtn;
+	}
+	
+	private int getPortPartOfAP(String ap){
+		StringTokenizer st=new StringTokenizer(ap,":");
+		String dmy=st.nextToken();
+		String pt=st.nextToken();
+		int x=(new Integer(pt)).intValue();
+		return x;
 	}
 }

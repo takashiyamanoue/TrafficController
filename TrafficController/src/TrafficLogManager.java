@@ -83,10 +83,12 @@ public class TrafficLogManager {
 		long t=packet.getCaptureHeader().timestampInMillis();
 		if(this.firstTime<0) this.firstTime=t;
 		if(t>this.lastTime) this.lastTime=t;
+		/*
 		if(logFileManager!=null){
 		       this.logFileManager.putMessageAt(packet, this.packetNumber);
 		       this.packetNumber++;
 		}
+		*/
 		if(main!=null){
 			/* */
 			if(main.mainWatch!=null)

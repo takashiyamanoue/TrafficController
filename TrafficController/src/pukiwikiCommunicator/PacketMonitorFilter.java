@@ -76,6 +76,7 @@ public class PacketMonitorFilter implements FilterInterface
 		ptime=""+(new Date(packet.getCaptureHeader().timestampInMillis()));
 //    	ptime=(new Date()).toString();
  		long n=packet.getFrameNumber();
+ 		try{
 		if (packet.hasHeader(eth)) {
 			smac = FormatUtils.mac(eth.source());
 			dmac = FormatUtils.mac(eth.destination());
@@ -131,6 +132,10 @@ public class PacketMonitorFilter implements FilterInterface
         else{
         	
         }
+ 		}
+ 		catch(Exception e){
+ 			return null;
+ 		}
     	for(int i=0;i<filters.size();i++){
     		Filter f=filters.elementAt(i);
     		boolean rtn=execCommand(f.getCommand(),f.getArgs());
