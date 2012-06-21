@@ -22,6 +22,7 @@ import org.jnetpcap.protocol.network.Ip4;
 import pukiwikiCommunicator.ForwardInterface;
 import pukiwikiCommunicator.PacketFilter;
 import pukiwikiCommunicator.PacketMonitorFilter;
+import pukiwikiCommunicator.ParsePacket;
 
 public class OneSideIO implements Runnable, ForwardInterface
 {
@@ -41,7 +42,7 @@ public class OneSideIO implements Runnable, ForwardInterface
 	PcapHeader hdr = new PcapHeader(JMemory.POINTER);
 	JBuffer buf = new JBuffer(JMemory.POINTER);
 	MainFrame main;
-	
+	byte [] myIpAddr;
 //	PacketMonitorFilter packetFilter;
 //	BlockedFileManager logFileManager;
 	
@@ -57,7 +58,7 @@ public class OneSideIO implements Runnable, ForwardInterface
     PacketFilter forwardFilter;
     PcapIf myIf;
     byte[] ifMac;
-	public OneSideIO(MainFrame m,PcapIf pif, Pcap p,PacketFilter fl){
+	public OneSideIO(MainFrame m,PcapIf pif, Pcap p,PacketFilter fl, byte[] ip){
 		main=m;
 		myIf=pif;
 		try{
@@ -70,6 +71,7 @@ public class OneSideIO implements Runnable, ForwardInterface
 		forwardFilter.setReturnInterface(this);
 		pcap = p;
 		id= JRegistry.mapDLTToId(pcap.datalink());
+		this.myIpAddr=ip;
 	}
 	public void setNewPcap(Pcap p){
 		pcap = p;
@@ -123,18 +125,18 @@ public class OneSideIO implements Runnable, ForwardInterface
 			System.out.println(e.toString());
 		}
 	}
-    public void sendPacket(PcapPacket p){
-    	PcapPacket px=new PcapPacket(p);
+    public void sendPacket(ParsePacket p){
+//    	PcapPacket px=new PcapPacket(p);
     	synchronized(pcap){
 //    	    if(this.pcap.sendPacket(px)!=Pcap.OK){
-    		if(this.pcap.sendPacket(p)!=Pcap.OK){
-    	    	System.out.println("error @ sendPacket, WanSideIO.");
+    		if(this.pcap.sendPacket(p.packet)!=Pcap.OK){
+    	    	System.out.println("error @ sendPacket, if="+interfaceNo);
     	    }
     	}
 	    if(logManager!=null)
 		      synchronized(logManager){
 //			          logManager.logDetail(main,p,interfaceNo);	
-		    	  logManager.logDetail(main, px, interfaceNo);
+		    	  logManager.logDetail(main, p, interfaceNo);
 		     }
     }
     public boolean isFromOtherIf(PcapPacket p){
@@ -161,4 +163,12 @@ public class OneSideIO implements Runnable, ForwardInterface
     public void setInterfaceNo(int i){
     	interfaceNo=i;
     }
+	public byte[] getIPAddr(){
+		return this.myIpAddr;
+	}
+	@Override
+	public void setIpMac(byte[] ip, byte[] mac) {
+		// TODO Auto-generated method stub
+		this.forwardFilter.setIpMac(ip,mac);
+	}
 }

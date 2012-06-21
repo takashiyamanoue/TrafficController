@@ -23,6 +23,7 @@ import org.jnetpcap.protocol.tcpip.Http;
 import org.jnetpcap.protocol.tcpip.Tcp;
 import org.jnetpcap.protocol.tcpip.Udp;
 import pukiwikiCommunicator.PacketMonitorFilter;
+import pukiwikiCommunicator.ParsePacket;
 
 
 public class TrafficLogManager {
@@ -34,15 +35,6 @@ public class TrafficLogManager {
 	public String[] detailIP;//
 //	public OrgLog orgnaize;
 	
-	Ip4 ip = new Ip4();
-	Ethernet eth = new Ethernet();
-	PcapHeader hdr = new PcapHeader(JMemory.POINTER);
-	JBuffer buf = new JBuffer(JMemory.POINTER);
-	Tcp tcp = new Tcp();
-    Udp udp = new Udp();
-    Arp arp = new Arp();
-    Icmp icmp = new Icmp();
-	final Http http = new Http();
 	PacketMonitorFilter packetFilter;
 	int currentHour;
     Calendar calendar;
@@ -68,7 +60,7 @@ public class TrafficLogManager {
 	MainFrame main;
 	String wmessage;
 //	public void logDetail(MainFrame m,PcapPacket packet, int id){
-	public synchronized void logDetail(MainFrame m, PcapPacket packet, int itf){
+	public synchronized void logDetail(MainFrame m, ParsePacket p, int itf){
 		main=m;
 		int h=calendar.get(Calendar.HOUR);
 		if(h!=currentHour){
@@ -80,7 +72,7 @@ public class TrafficLogManager {
 			firstTime=-1;
 			lastTime=0;
 		}
-		long t=packet.getCaptureHeader().timestampInMillis();
+		long t=p.packet.getCaptureHeader().timestampInMillis();
 		if(this.firstTime<0) this.firstTime=t;
 		if(t>this.lastTime) this.lastTime=t;
 		/*
@@ -97,7 +89,7 @@ public class TrafficLogManager {
 		}				
 
 //		packet.scan(id);
-		String rtn=packetFilter.exec(packet);
+		String rtn=packetFilter.exec(p.packet);
 		String match="";
 		if(rtn!=null) match=rtn;
 		String smac="", dmac="", sip="", dip="";
@@ -109,174 +101,23 @@ public class TrafficLogManager {
 			return;
 		}
 		*/
-		long time=packet.getCaptureHeader().timestampInMillis();
+		long time=p.packet.getCaptureHeader().timestampInMillis();
 		String date=""+(new Date(time));
 		/*
 		*/
 		
-		String[] states;
-		states = new String[10];
+		String[] states=p.states;
 		states[1]=date;
-		int[] address;
-		address = new int[14];
-		String prt="";
-		try{
-		if (packet.hasHeader(eth)) {
-//				System.out.printf("#%d: eth.src=%s\n", n, smac);
-			smac = FormatUtils.mac(eth.source());
-			dmac = FormatUtils.mac(eth.destination());
-		}
-		if(packet.hasHeader(ip)){
-			sip = FormatUtils.ip(ip.source());
-			dip = FormatUtils.ip(ip.destination());
-			address[0]= 0xff & (ip.source()[0]);
-			address[1]= 0xff & (ip.source()[1]);
-			address[2]= 0xff & (ip.source()[2]);
-			address[3]= 0xff & (ip.source()[3]);
-			address[6]= 0xff & (ip.destination()[0]);
-			address[7]= 0xff & (ip.destination()[1]);
-			address[8]= 0xff & (ip.destination()[2]);
-			address[9]= 0xff & (ip.destination()[3]);	
-			//
-			if(packet.hasHeader(tcp)){
-				prt="TCP";
-				address[4]= 0xff & (tcp.source()>>8);
-				address[5]= 0xff & tcp.source();
-				address[10]= 0xff & (tcp.destination()>>8);
-				address[11]= 0xff & tcp.destination();
-				String flags="-";
-				if(tcp.flags_SYN()) flags=flags+"SYN-";
-				if(tcp.flags_ACK()) flags=flags+"ACK-";
-				if(tcp.flags_PSH()) flags=flags+"PSH-";
-				if(tcp.flags_FIN()) flags=flags+"FIN-";
-				if(tcp.flags_RST()) flags=flags+"RST-";
-				if(tcp.flags_CWR()) flags=flags+"CWR-";
-				if(tcp.flags_URG()) flags=flags+"URG-";
-				states[0]=flags+" "+showAsciiInBinary(tcp.getPayload());
-			}
-			else
-			if(packet.hasHeader(udp)){
-				prt="UDP";
-				address[4]= 0xff & (udp.source()>>8);
-				address[5]= 0xff & udp.source();
-				address[10]= 0xff & (udp.destination()>>8);
-				address[11]= 0xff & udp.destination();
-				states[0]=showAsciiInBinary(udp.getPayload());
-			}
-			else
-			if(packet.hasHeader(icmp)){
-				prt="ICMP";
-				address[4]= 0;
-				address[5]= 0;
-				address[10]= 0;
-				address[11]= 0;
-				String icmpString=icmp.checksumDescription();
-				states[0]=icmpString+" "+showAsciiInBinary(arp.getPayload());
-			}
-			else{
-				prt="ip-N/A";
-				address[4]= 0xff & (udp.source()>>8);
-				address[5]= 0xff & udp.source();
-				address[10]= 0xff & (udp.destination()>>8);
-				address[11]= 0xff & udp.destination();
-				states[0]=showAsciiInBinary(eth.getPayload());
-			}
-		}
-		else{
-			address[0]= 0xff & (eth.source())[2];
-			address[1]= 0xff & (eth.source())[3];
-			address[2]= 0xff & (eth.source())[4];
-			address[3]= 0xff & (eth.source())[5];
-			address[6]= 0xff & (eth.destination())[2];
-			address[7]= 0xff & (eth.destination())[3];
-			address[8]= 0xff & (eth.destination())[4];
-			address[9]= 0xff & (eth.destination())[5];
-			if(packet.hasHeader(arp)){
-				prt="ARP";
-				address[4]= 0;
-				address[5]= 0;
-				address[10]= 0;
-				address[11]= 0;
-				sip=FormatUtils.ip(arp.spa());
-				dip=FormatUtils.ip(arp.tpa());
-				String arpString=arp.hardwareTypeDescription()+
-				            " "+arp.operationDescription()+" "
-				            +arp.protocolTypeDescription()
-				            +" spa-"+sip
-				            +" tpa-"+dip;
-				states[0]=arpString;
+		int[] address=p.address;
 
-			}		
-			else{
-				prt="ether-N/A";
-				address[4]= 0;
-				address[5]= 0;
-				address[10]= 0;
-				address[11]= 0;
-				states[0]=eth.getDescription()+" "+showAsciiInBinary(eth.getPayload());
-			}
-		}
-		}
-		catch(Exception e){
-			System.out.println(e.toString()+"n="+packetNumber+" itf="+itf);
-		}
-		states[2]=prt;
-//		states[3]=IP[1];//�ｽ�ｽ�ｽM�ｽ�ｽ
-		states[3]=sip;
-//		states[4]=IP[2];//�ｽ�ｽ�ｽM�ｽ�ｽ              
-		states[4]=dip;
-		sport=(address[4]<<8)|(address[5]);
-		dport=(address[10]<<8)|(address[11]);
-		states[5]=""+sport;
-		states[6]=""+dport;
-		states[7]=smac;
-		states[8]=dmac;
-		
-
-		wmessage="#"+packetNumber+" if="+itf+" date="+date+" "+smac+" -> "+dmac+" prtcl="+prt+" "+sip+" -> "+dip+" "+sport+"->"+dport+" "+states[0];
+		wmessage="#"+packetNumber+" if="+itf+" date="+date+" "+
+		         p.sourceMacString+" -> "+p.destinationMacString+
+		         " prtcl="+p.protocol+" "+p.sourceIpString+" -> "+p.destinationIpString+
+		         " "+p.sport+"->"+p.dport+" "+states[0];
 		main.writePacketMessage(wmessage);
 		this.orgLog(packetNumber, time,states, address,match);		
 	}
-	boolean isInChars(char x, char[] y){
-		for(int i=0;i<y.length;i++){
-			if(x==y[i]) return true;
-		}
-		return false;
-	}
-	char[] asciis=new char[]{
-			'0','1','2','3','4','5','6','7','8','9',
-			'a','b','c','d','e','f','g','h','i','j',
-			'k','l','m','n','o','p','q','r','s','t',
-			'u','v','w','x','y','z',
-			'A','B','C','D','E','F','G','H','I','J',
-			'K','L','M','N','O','P','Q','R','S','T',
-			'U','V','W','X','Y','Z',
-			' ','!','"','#','$','%','&','\'','(',')',
-			'=','-','+','*','/','~','^','|','{','}',
-			'[',']','<','>','?',';',':','.',',','@'};
-	String showAsciiInBinary(byte[] b){
-		String rtn="";
-		for(int i=0;i<80;i++){
-			if(i>=b.length) return rtn;
-			char x=(char)b[i];
-            if(isInChars(x,asciis)) rtn=rtn+x;
-            else rtn=rtn+'.';			
-		}
-		rtn=rtn+"...";
-		return rtn;
-	}
-	private String natureTerm;
-	private String protocol;
-	private String[] Ipa;
-	private int srcIpaunder;
-	private int dstIpaunder;
-	private int srcPortunder;
-	private int dstPortunder;
-	private boolean exist;
-	private String[] state;
-	private int[] address; 
 	VisualTrf vt;
-	private long frameNumber;
 	MainWatch mainWatch;
 	
 	public void orgLog(long fn, long lt,String[] state, int[] address, String match){
@@ -285,13 +126,13 @@ public class TrafficLogManager {
 				mainWatch=main.mainWatch;
 			}
 		}
-		srcIpaunder = address[3];
-		dstIpaunder = address[9];
-		srcPortunder = address[5];
-		dstPortunder = address[11];
-		this.state = state;
-		this.address = address;
-		this.frameNumber=fn;
+		int srcIpaunder = address[3];
+		int dstIpaunder = address[9];
+		int srcPortunder = address[5];
+		int dstPortunder = address[11];
+//		this.state = state;
+//		this.address = address;
+		long frameNumber=fn;
 
 		if(mainWatch==null) return;
 //		byte[] netAddr=this.main.getCurrentLanInterfaceNetworkAddr();

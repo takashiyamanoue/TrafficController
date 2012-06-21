@@ -269,4 +269,5 @@ public class PacketMonitorFilter implements FilterInterface
 	   public void setReturnInterface(ForwardInterface f){
 		   returnInterface=f;
 	   }
+
 }

@@ -95,10 +95,6 @@ public class MainFrame extends JFrame
 		this.loadProperties();
 		this.pukiwikiCommunicator=new PukiwikiCommunicator(mainTabPane,this.setting);
 		this.packetMonitorFilter=new PacketMonitorFilter(pukiwikiCommunicator);
-		this.lan2Wan=new PacketFilter(pukiwikiCommunicator,"lan2Wan");
-		this.wan2Lan=new PacketFilter(pukiwikiCommunicator,"wan2Lan");
-		pukiwikiCommunicator.setPacketFilterLan(lan2Wan);
-		pukiwikiCommunicator.setPacketFilterWan(wan2Lan);
 		
 //		vtraffic = new VisualTrf[256][256];
 		this.setProperties();
@@ -496,10 +492,20 @@ public class MainFrame extends JFrame
         	copyAddr(this.currentWanInterfaceNetworkAddr,this.currentLanInterfaceNetworkAddr);
         	
         }
+        
+		String wanMac=(String)(interfaceTable.getValueAt(this.wanSideInterface,4));
+		String lanMac=(String)(interfaceTable.getValueAt(this.lanSideInterface,4));
+		this.wan2Lan=new PacketFilter(pukiwikiCommunicator,"wan2Lan", wanMac,
+				currentWanInterfaceNetworkAddr, currentWanInterfaceNetmask, this.getCurrentWanInterfaceIpAddr());        
+		this.lan2Wan=new PacketFilter(pukiwikiCommunicator,"lan2Wan", lanMac,
+				currentLanInterfaceNetworkAddr, currentLanInterfaceNetmask, this.getCurrentLanInterfaceIpAddr());
+		pukiwikiCommunicator.setPacketFilterWan(wan2Lan);
+		pukiwikiCommunicator.setPacketFilterLan(lan2Wan);
+        
 		if(lanSideIO==null){
 		   lanSideIO = new OneSideIO(this, 
 			       networkInterfaces.elementAt(this.lanSideInterface),
-				   lanPcap,lan2Wan);
+				   lanPcap,lan2Wan, null);
 		   lanSideIO.setInterfaceNo(this.lanSideInterface);
 		   lanSideIO.setLogManager(this.logManager);
 		   lanSideIO.setNewPcap(lanPcap);
@@ -515,7 +521,7 @@ public class MainFrame extends JFrame
 		if(wanSideIO==null){
 		   wanSideIO = new OneSideIO(this, 
 				   networkInterfaces.elementAt(this.wanSideInterface),
-				   wanPcap,wan2Lan);
+				   wanPcap,wan2Lan, this.getCurrentWanInterfaceIpAddr());
 		   wanSideIO.setInterfaceNo(this.wanSideInterface);
 		   wanSideIO.setLogManager(this.logManager);
 		   wanSideIO.setNewPcap(wanPcap);

@@ -3,5 +3,7 @@ import org.jnetpcap.packet.PcapPacket;
 
 
 public interface ForwardInterface {
-    public void sendPacket(PcapPacket x);
+    public void sendPacket(ParsePacket x);
+    public byte[] getIPAddr();
+    public void setIpMac(byte[] ip, byte[] mac);
 }

@@ -770,6 +770,7 @@ implements PukiwikiJavaApplication, Runnable
 //			x=x+"\n";
 		   }
 		}
+		if(this.packetFilterLan==null) return;
 		this.resultVector=this.packetFilterLan.getResults();
 		if(this.resultVector!=null) {
 		   for(int i=0;i<resultVector.size();i++){
@@ -777,6 +778,7 @@ implements PukiwikiJavaApplication, Runnable
 //			x=x+"\n";
 		   }
 		}
+		if(this.packetFilterWan==null) return;
 		this.resultVector=this.packetFilterWan.getResults();
 		if(this.resultVector!=null) {
 		   for(int i=0;i<resultVector.size();i++){
