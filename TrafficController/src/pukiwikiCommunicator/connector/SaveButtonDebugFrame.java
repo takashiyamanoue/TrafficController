@@ -363,6 +363,7 @@ public class SaveButtonDebugFrame extends JFrame implements AuthDialogListener
 		catch(Exception e){
 			this.println(e.toString()+"\n");
 			e.printStackTrace();
+			return null;
 		}
 		return pageText;
 	}

@@ -56,6 +56,7 @@ public class TrafficLogManager {
 		calendar=Calendar.getInstance();
 		currentHour=calendar.get(Calendar.HOUR);
 		logFileManager=new BlockedFileManager("TempLog-"+currentHour);
+		this.packetNumber=0;
 	}
 	MainFrame main;
 	String wmessage;
@@ -71,6 +72,7 @@ public class TrafficLogManager {
 			JScanner.getThreadLocal().setFrameNumber(0);  
 			firstTime=-1;
 			lastTime=0;
+			packetNumber=0;
 		}
 		long t=p.packet.getCaptureHeader().timestampInMillis();
 		if(this.firstTime<0) this.firstTime=t;
@@ -116,6 +118,7 @@ public class TrafficLogManager {
 		         " "+p.sport+"->"+p.dport+" "+states[0];
 		main.writePacketMessage(wmessage);
 		this.orgLog(packetNumber, time,states, address,match);		
+		packetNumber++;
 	}
 	VisualTrf vt;
 	MainWatch mainWatch;

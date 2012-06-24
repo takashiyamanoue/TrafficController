@@ -6,8 +6,12 @@ import javax.swing.table.TableModel;
 
 import org.jnetpcap.Pcap;
 import org.jnetpcap.PcapAddr;
+import org.jnetpcap.PcapHeader;
 import org.jnetpcap.PcapIf;
 import org.jnetpcap.PcapSockAddr;
+import org.jnetpcap.nio.JBuffer;
+import org.jnetpcap.nio.JMemory;
+import org.jnetpcap.nio.JMemoryPool;
 import org.jnetpcap.packet.format.FormatUtils;
 
 import pukiwikiCommunicator.PacketFilter;
@@ -82,6 +86,9 @@ public class MainFrame extends JFrame
 	private JLabel regularExpressionFieldLabel;
 	private JTextField regularExpressionField;
 	private JCheckBox grepCheckBox;
+	public PcapHeader hdr = new PcapHeader(JMemory.POINTER);
+	public JBuffer buf = new JBuffer(JMemory.POINTER);
+	public JMemoryPool jpool=new JMemoryPool();
 
 	public MainFrame(){
 		initGUI();
@@ -652,7 +659,12 @@ public class MainFrame extends JFrame
 		if(w.length()>10000)
 		     w=w.substring(5000);
 		w=w+x+"\n";
-	    logtext.setText(w);
+		try{
+	        logtext.setText(w);
+		}
+		catch(Exception e){
+			System.out.println("error @ writePackageMessage:"+e);
+		}
 		JScrollBar sb=tcpdump_log.getVerticalScrollBar();
 		sb.setValue(sb.getMaximum());
 		repaint();

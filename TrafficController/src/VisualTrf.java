@@ -64,7 +64,7 @@ public class VisualTrf {
 		}
 	}
 	
-	//‚h‚oƒAƒhƒŒƒX‚Ìd•¡Šm”F
+	//ï¿½hï¿½oï¿½Aï¿½hï¿½ï¿½ï¿½Xï¿½Ìdï¿½ï¿½ï¿½mï¿½F
 	public boolean existIP(String ipaddress){
 		String ip = ipaddress;
 		for(int i=0;i<paneNumber;i++){
@@ -99,7 +99,7 @@ public class VisualTrf {
 
 	}
 
-	//8/15•ÏX
+	//8/15ï¿½ÏX
 	/*
 	public synchronized void appendDetail(String b,String t,String p){
 		
@@ -133,10 +133,10 @@ public class VisualTrf {
 			PData pdatax=pdata.elementAt(i);
 			String protocol=pdatax.state[2];
 			int thisProtocol=0;
-			if(protocol.equals("TCP"))
+			if(protocol.equals("tcp"))
 				thisProtocol=0x01;
 			else
-			if(protocol.equals("UDP"))
+			if(protocol.equals("udp"))
 				thisProtocol=0x02;
 			else
 				thisProtocol=0x04;
@@ -215,7 +215,7 @@ public class VisualTrf {
 
 	}	
 
-	//8/5‚É‰ü—Ç
+	//8/5ï¿½É‰ï¿½ï¿½
 	/*
 	public void showDetail(){
 		jf = new JFrame("Detail "+uipa+":"+uport);

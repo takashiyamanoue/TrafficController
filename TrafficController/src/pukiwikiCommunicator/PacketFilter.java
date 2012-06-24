@@ -20,6 +20,7 @@ import org.jnetpcap.packet.JMemoryPacket;
 import org.jnetpcap.packet.JPacket;
 import org.jnetpcap.packet.PcapPacket;
 import org.jnetpcap.packet.format.FormatUtils;
+import org.jnetpcap.protocol.JProtocol;
 import org.jnetpcap.protocol.lan.Ethernet;
 import org.jnetpcap.protocol.network.Ip4;
 import org.jnetpcap.protocol.tcpip.Tcp;
@@ -131,6 +132,9 @@ ParsePacket pp;
 String ptime="";
 
 private ParsePacket exec(PcapPacket p){
+	if(myName.equals("lan2wan")){
+		int a=0;
+	}
 	pp=new ParsePacket(p);
 	if(p==null) return null;
 	ptime=""+(new Date(pp.packet.getCaptureHeader().timestampInMillis()));
@@ -148,18 +152,20 @@ private ParsePacket exec(PcapPacket p){
 		}
 	}
 	if(pp.packet.hasHeader(pp.arp)){
-		Arp.OpCode op=pp.arp.operationEnum();
-		if(op==Arp.OpCode.REPLY){
+		byte[] buf=new byte[pp.arp.getLength()];
+		pp.arp.getByteArray(0, buf);
+		int op=buf[7];
+		if(op==2){
 		   processArpReply(pp);
 		}
 	}
 	if(pp.packet.hasHeader(pp.ip)){
-        if(isInNat(pp.ip.source(), pp.sport, pp.ip.destination(), pp.dport)){
+        if(isInNat(pp.ip.destination(), pp.dport, pp.ip.source(), pp.sport)){
         	return restoreNatedPacket(pp);
         }
         if(isDnsAnswer(pp)){
     	   byte[] dnsr=getDnsAnswerAddr(pp);
-           if(isInNat(dnsr, 0, pp.ip.destination(), pp.dport)){
+           if(isInNat(pp.ip.destination(), pp.dport, dnsr, 0 )){
         	  this.writeResultToBuffer("substitute-destination to "+bytes2sip(dnsr),pp);
     	      return setDnsReturn(pp,dnsr);
            }
@@ -170,10 +176,11 @@ private ParsePacket exec(PcapPacket p){
 private boolean isInNat(byte[] x, int y, byte[] u, int w){
 	String ap=SBUtil.addrPort(x,y);
 	String sp=SBUtil.addrPort(u,w);
+//	System.out.println("isInNat("+ap+","+sp+")");
 	int nc=nat.size();
 	if(nc==0)return false;
 	String key=sp+"-"+ap;
-//	System.out.println("isInNat key="+key);
+//	System.out.println("isInNat at "+myName+" key="+key);
 	String rtn=nat.get(key);
 	if(rtn==null) return false;
 	System.out.println("rewriting source-ip from "+ap+" to "+ rtn);
@@ -221,11 +228,10 @@ private boolean execCommand(String command, String[] args, ParsePacket p){
      		if(p.packet.hasHeader(p.tcp)){
      		    p.packet.getHeader(p.tcp);
      		    if(p.tcp.flags_SYN() && !p.tcp.flags_ACK()){
-    		       PcapPacket pr=makeSynAckReturn(p.packet);
+    		       ParsePacket pr=makeSynAckReturn(p);
     		       if(pr==null) return true;
-    		       p.packet=pr;
-    		       this.returnInterface.sendPacket(p);
-    		       this.writeResultToBuffer(command,p);
+    		       this.returnInterface.sendPacket(pr);
+    		       this.writeResultToBuffer(command,pr);
     		       return true;
      	        }
      		    return false;
@@ -238,11 +244,10 @@ private boolean execCommand(String command, String[] args, ParsePacket p){
     if(command.equals("forward ip=")){
     	if(SBUtil.isMatchIpV4Address(args[0],p.destinationIpString)){
     		String faddr=args[1];
-    		PcapPacket pr=makeForward(p,faddr,args[2]);
+    		ParsePacket pr=makeForward(p,faddr,args[2]);
             if(pr==null) return true;
-            p.packet=pr;
-    		otherIO.sendPacket(p);
-    		this.writeResultToBuffer(command,p);
+    		otherIO.sendPacket(pr);
+    		this.writeResultToBuffer(command,pr);
     		return true;
         }
     	else{
@@ -253,11 +258,8 @@ private boolean execCommand(String command, String[] args, ParsePacket p){
     	if(!p.protocol.equals("tcp")) return false;
     	if(SBUtil.isMatchIpV4Address(args[0],p.sourceIpString)){
     		String faddr=args[1];
-    		PcapPacket pr=makeForward(p,faddr,args[2]);
-    		if(pr==null) return true;
-    		p.packet=pr;
-    		otherIO.sendPacket(p);
-    		this.writeResultToBuffer(command,p);
+    		ParsePacket pr=makeForward(p,faddr,args[2]);
+    		this.writeResultToBuffer(command,pr);
     		return true;
         }
     	else{
@@ -268,11 +270,10 @@ private boolean execCommand(String command, String[] args, ParsePacket p){
     	if(!p.protocol.equals("udp")) return false;
      	int dp=p.udp.destination();
     	if(dp==53){
-    		   PcapPacket pr=makeDnsInterCeption(p,args[0],args[1]);
+    		   ParsePacket pr=makeDnsInterCeption(p,args[0],args[1]);
     		   if(pr==null) return true;
-    		   p.packet=pr;
-    		   otherIO.sendPacket(p);
-    		   this.writeResultToBuffer(command,p);
+    		   otherIO.sendPacket(pr);
+    		   this.writeResultToBuffer(command,pr);
     		   return true;
     	}
     	else{
@@ -302,6 +303,7 @@ public void clear(){
 Vector <String> resultQueue;
 int resultQueueMax=10;
 private void writeResultToBuffer(String x,ParsePacket p){
+	if(p==null) return;
 	String out=ptime+" "+x+" "+p.etherString+p.ipString+p.l4String+"\n";
 	if(resultQueue==null) return;
 	resultQueue.add(out);
@@ -348,11 +350,11 @@ private String showAsciiInBinary(byte[] b){
    public void setAnotherSideFilter(PacketFilter f){
 	   anotherSideFilter=f;
    }
-   private PcapPacket makeSynAckReturn(PcapPacket p){
+   private ParsePacket makeSynAckReturn(ParsePacket p){
 	   Ethernet eth=new Ethernet();
 	   Ip4 ip = new Ip4();
 	   Tcp tcp = new Tcp();
-       PcapPacket px=new PcapPacket(p);
+       PcapPacket px=new PcapPacket(p.packet);
 	   px.getHeader(eth);
 	   px.getHeader(ip);
 	   px.getHeader(tcp);
@@ -373,9 +375,10 @@ private String showAsciiInBinary(byte[] b){
 	   tcp.checksum(tcp.calculateChecksum());
 	   ip.checksum(ip.calculateChecksum());
 	   eth.checksum(eth.calculateChecksum());
-	   return px;
+	   p.packet=px;
+	   return p;
    }
-   private PcapPacket makeDnsInterCeption(ParsePacket p, String oaddr, String newAddr){
+   private ParsePacket makeDnsInterCeption(ParsePacket p, String oaddr, String newAddr){
 	   if(this.anotherSideFilter!=null){
 		   Ethernet eth=new Ethernet();
 		   Ip4 ip = new Ip4();
@@ -393,61 +396,76 @@ private String showAsciiInBinary(byte[] b){
  		   udp.checksum(udp.calculateChecksum());
 		   ip.checksum(ip.calculateChecksum());
 		   eth.checksum(eth.calculateChecksum());
-		   return px;
+		   p.packet=px;
+		   return p;
 	   }
 	   return null;
    }
-   private PcapPacket makeForward(ParsePacket pp, String faddr, String port){
-	   if(pp.packet.hasHeader(pp.ip)){
-		   Ethernet eth=new Ethernet();
-		   Ip4 ip = new Ip4();
-		   Tcp tcp = new Tcp();
-		   Udp udp = new Udp();
-		   PcapPacket px=new PcapPacket(pp.packet);
-		   px.getHeader(eth);
-		   px.getHeader(ip);
-		   byte[] macD=eth.destination();
-		   byte[] macS=eth.source();
-	       byte[] da=SBUtil.s2byteIp4(faddr);
-	       byte[] oa=ip.destination();
-	       byte[] sa=ip.source();
-	       int sp=0;
-	       int dp=(new Integer(port)).intValue();
-	       int op=0;
-	       if(px.hasHeader(tcp)){
-		       px.getHeader(tcp);
-		       op=tcp.destination();
-		       sp=tcp.source();
-	           tcp.destination(dp);		   
-	   		   tcp.checksum(tcp.calculateChecksum());
-	       }
-	       else
-	       if(px.hasHeader(udp)) {
-		       px.getHeader(udp);
-		       op=udp.destination();
-		       sp=udp.source();
-	           udp.destination(dp);		   
-	   		   udp.checksum(udp.calculateChecksum());
-	       }
-	       else{
-	    	   return null;
-	       }
-	       ip.destination(da);
-	       if(this.anotherSideFilter!=null){
-		       String a=SBUtil.addrPort(da,dp);
-		       String s=SBUtil.addrPort(sa,sp);
-		       String b=SBUtil.addrPort(oa,op);
-		       String key=a+"-"+s;
-//		       String info=b+"-"+mac2S(macS);
-		       System.out.println("make forward key="+key+" info="+b);
-		       anotherSideFilter.setNatA(key, b);
-	       }
-	       macD=this.getMac(da,pp);
-	       eth.destination(macD);
-   		   ip.checksum(ip.calculateChecksum());
-		   eth.checksum(eth.calculateChecksum());
-	       return px;
+//   final PcapPacket jp = new PcapPacket(64 * 1024); 
+   private ParsePacket makeForward(ParsePacket pp, String faddr, String port){
+	   if(!(pp.packet.hasHeader(pp.ip))) return null;
+//	   pp.packet.transferTo(jp);
+	   PcapPacket jp=new PcapPacket(pp.packet);
+//	   byte[] jpb=new byte[1500];
+//	   jpb[12]=0x08;
+//	   jpb[13]=0x00;
+//	   JMemoryPacket jp =  new JMemoryPacket(pp.packet);
+//	   JMemoryPacket jp = new JMemoryPacket(JProtocol.ETHERNET_ID,jpb);
+	   Ethernet eth=new Ethernet();
+	   Ip4 ip=new Ip4();
+	   Tcp tcp=new Tcp();
+	   Udp udp=new Udp();
+	   jp.getHeader(eth);
+	   jp.getHeader(ip);
+//	   pp.ip.transferPayloadTo(jp);
+//	   pp.eth.transferPayloadTo(jp);
+	   byte[] macO=eth.destination();
+	   byte[] macS=eth.source();
+	   byte[] da=SBUtil.s2byteIp4(faddr);
+	   byte[] oa=ip.destination();
+	   byte[] sa=ip.source();
+	   int sp=0;
+	   int dp=(new Integer(port)).intValue();
+	   int op=0;
+	   if(jp.hasHeader(tcp)){
+		   jp.getHeader(tcp);
+		   op=tcp.destination();
+		   sp=tcp.source();
+	       tcp.destination(dp);
+	       tcp.source(sp);
+	   	   tcp.checksum(tcp.calculateChecksum());
 	   }
+	   else
+	   if(jp.hasHeader(udp)) {
+		   jp.getHeader(udp);
+		   op=udp.destination();
+		   sp=udp.source();
+	       udp.destination(dp);		   
+		   udp.source(sp);
+	   	   udp.checksum(udp.calculateChecksum());
+	   }
+	   else{
+	       return null;
+	   }
+	   ip.destination(da);
+	   if(this.anotherSideFilter!=null){
+		    String a=SBUtil.addrPort(da,dp);
+		    String s=SBUtil.addrPort(sa,sp);
+		    String b=SBUtil.addrPort(oa,op);
+		    String key=a+"-"+s;
+//		       String info=b+"-"+mac2S(macS);
+		    System.out.println("make forward key="+key+" info="+b);
+		    anotherSideFilter.setNatA(key, b);
+	   }
+	   byte[] macD=this.getMac(da,pp);
+	   if(macD==null)
+	    	eth.destination(macO);
+	   else
+	        eth.destination(macD);
+   	   ip.checksum(ip.calculateChecksum());
+	   eth.checksum(eth.calculateChecksum());
+//   		   pp.packet.peer(pp.ip);
+	   this.otherIO.sendPacket(jp,pp);
 	   return null;
    }
    private ParsePacket restoreNatedPacket(ParsePacket p){
@@ -637,14 +655,17 @@ private String showAsciiInBinary(byte[] b){
 		while(xmac==null){
 		    xmac=smac2byte(macTable.get(ipa));
 		    if(xmac==null) {
-		    	if(repTimes>10) return null;
+		    	if(repTimes>20) return null;
 			    sendArp(xip,pp);
 			    try{
-			      Thread.sleep(5);
+			      Thread.sleep(100);
 			    }
 			    catch(InterruptedException e){}
 			    repTimes++;
 		    }
+		}
+		if(xmac==null){
+			System.out.println("getMac failed.");
 		}
 		return xmac;
 	}
@@ -667,9 +688,28 @@ private String showAsciiInBinary(byte[] b){
 	}
 	
 	private void sendArp(byte[] xip,ParsePacket pp){
+/*
+		JPacket packet =  
+				new JMemoryPacket(JProtocol.ETHERNET_ID,  
+				      " 001801bf 6adc0025 4bb7afec 08004500 "  
+				    + " 0041a983 40004006 d69ac0a8 00342f8c "  
+				    + " ca30c3ef 008f2e80 11f52ea8 4b578018 "  
+				    + " ffffa6ea 00000101 080a152e ef03002a "  
+				    + " 2c943538 322e3430 204e4f4f 500d0a");  
+				  
+				Ip4 ip = packet.getHeader(new Ip4());  
+				Tcp tcp = packet.getHeader(new Tcp());  
+				  
+				tcp.destination(80);  
+				  
+				ip.checksum(ip.calculateChecksum());  
+				tcp.checksum(tcp.calculateChecksum());  
+				packet.scan(Ethernet.ID);  
+				  
+				System.out.println(packet);  
+				*/
 		Arp arp=new Arp();
-		PcapPacket p=new PcapPacket(200);
-		Ethernet eth=new Ethernet();
+//		PcapPacket p=new PcapPacket(pp.packet);
 		byte[] destMac;
 		byte[] ipaddr;
 		byte[] myip;
@@ -688,24 +728,42 @@ private String showAsciiInBinary(byte[] b){
 		else{
 			ipaddr=getRouterIP();
 		}
-		p.scan(Ethernet.ID);
 		byte[] myMacB=smac2byte(myMac);
 		destMac=smac2byte("ff:ff:ff:ff:ff:ff");
-		p.peer(eth);
-		eth.source(myMacB);
-		eth.destination(destMac);
-		eth.peerPayloadTo(arp);
-		byte[] arpb=new byte[30];
-		arpb[0]=0; arpb[1]=1; arpb[2]=0x08; arpb[3]=0x00;
-		arpb[4]=6; arpb[5]=4; arpb[6]=0x00; arpb[7]=0x01;
-		for(int i=0;i<6;i++) arpb[8+i]=myMacB[i];
-		for(int i=0;i<4;i++) arpb[14+i]=myip[i];
-		for(int i=0;i<6;i++) arpb[18+i]=destMac[i];
-		for(int i=0;i<4;i++) arpb[24+i]=ipaddr[i];
-        arp.setByteArray(0, arpb);
+//		eth.peerPayloadTo(arp);
+		byte[] arpb=new byte[64];
+//		arpb[0]=0; // destination mac		destMac=smac2byte("ff:ff:ff:ff:ff:ff");
+		for(int i=0;i<6; i++) arpb[i]=destMac[i];
+//		arpb[6]=0; // source mac;
+		for(int i=0;i<6; i++) arpb[6+i]=myMacB[i];
+		arpb[12]=0x08; //arp
+		arpb[13]=0x06; // 
+		arpb[14]=0; arpb[15]=1; arpb[16]=0x08; arpb[17]=0x00;
+		arpb[18]=6; arpb[19]=4; arpb[20]=0x00; arpb[21]=0x01;
+		for(int i=0;i<6;i++) arpb[22+i]=myMacB[i];
+		for(int i=0;i<4;i++) arpb[28+i]=myip[i];
+		for(int i=0;i<6;i++) arpb[32+i]=destMac[i];
+		for(int i=0;i<4;i++) arpb[38+i]=ipaddr[i];
+		arpb[42]=0; // crc-1
+		arpb[43]=0; // crc-2
+		arpb[44]=0; // crc-3
+		arpb[45]=0; // crc-4
+		/* */
+		JMemoryPacket jp =  new JMemoryPacket(JProtocol.ETHERNET_ID,arpb);
+		Ethernet eth=new Ethernet();
+        jp.getHeader(eth);		
+//		p.getHeader(eth);
+//		eth.source(myMacB);
+//		eth.destination(destMac);
+//		jp.getHeader(arp);
         eth.checksum(eth.calculateChecksum());
-        pp.packet=p;
-        this.otherIO.sendPacket(pp);
+//        ParsePacket pr=new ParsePacket(new PcapPacket(eth));
+        /* */
+//		pp.packet=new PcapPacket(arpb);
+//		pp.packet.getHeader(pp.eth);
+//		pp.eth.checksum(pp.eth.calculateChecksum());
+//        this.otherIO.sendPacket(pr);
+        this.otherIO.sendPacket(jp,null);
 	}
 	private boolean isInNetwork(byte[] h, byte[] na, byte[] mask){
 		if(h==null) return false;
@@ -734,6 +792,7 @@ private String showAsciiInBinary(byte[] b){
 		   for(int i=0;i<4;i++) dip[i]=arpb[24+i];
 		   String sips=SBUtil.bytes2sip(sip); String smacs=SBUtil.bytes2smac(smac);
 		   String dips=SBUtil.bytes2sip(dip); String dmacs=SBUtil.bytes2smac(dmac);
+//		   System.out.println("arp reply sips="+sips+",ssmacs="+smacs+",dips="+dips+",dmacs="+dmacs);
 		   this.macTable.put(sips, smacs);
 		   this.macTable.put(dips, dmacs);
 		   this.otherIO.setIpMac(dip, dmac);

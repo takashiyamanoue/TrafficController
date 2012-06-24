@@ -19,32 +19,32 @@ import org.jnetpcap.protocol.tcpip.Udp;
 public class ParsePacket {
 	public Ip4 ip = new Ip4();
 	public Ethernet eth = new Ethernet();
-	public PcapHeader hdr = new PcapHeader(JMemory.POINTER);
-	public JBuffer buf = new JBuffer(JMemory.POINTER);
+//	public PcapHeader hdr = new PcapHeader(JMemory.POINTER);
+//	public JBuffer buf = new JBuffer(JMemory.POINTER);
 	public Tcp tcp = new Tcp();
     public Udp udp = new Udp();
     public Arp arp = new Arp();
     public Icmp icmp = new Icmp();
 	public final Http http = new Http();
 	public PcapPacket packet;
-	public String sourceMacString;
-	public String destinationMacString;
-	public String sourceIpString;
-	public String destinationIpString;
-	public String etherString;
-	public String protocol;
+	public String sourceMacString="";
+	public String destinationMacString="";
+	public String sourceIpString="";
+	public String destinationIpString="";
+	public String etherString="";
+	public String protocol="";
 	public byte[] payload;
-	public String ipString;
-	public String payloadString;
-	public String l4String;
+	public String ipString="";
+	public String payloadString="";
+	public String l4String="";
 	public int sport;
 	public int dport;
 	public int[] address = new int[14];
-	public String[] states = new String[10];
-
-	
-	public ParsePacket(PcapPacket p){
-		packet=p;
+	public String[] states = new String[]{"","","","","",
+		                                     "","","","",""};
+    public void reParse(){
+//    	packet.scan(Ethernet.ID);
+		states[0]="unknown";
 		try{	
 			  if (packet.hasHeader(eth)) {
 				   packet.getHeader(eth);
@@ -52,6 +52,16 @@ public class ParsePacket {
 				   destinationMacString = FormatUtils.mac(eth.destination());
 //				System.out.printf("#%d: eth.src=%s\n", packet.getFrameNumber(), str);
 //				System.out.printf("#%d: eth.src=%s\n", n, smac);
+				   address[0]= 0xff & (eth.source()[2]);
+				   address[1]= 0xff & (eth.source()[3]);
+				   address[2]= 0xff & (eth.source()[4]);
+				   address[3]= 0xff & (eth.source()[5]);
+				   address[6]= 0xff & (eth.destination()[2]);
+				   address[7]= 0xff & (eth.destination()[3]);
+				   address[8]= 0xff & (eth.destination()[4]);
+				   address[9]= 0xff & (eth.destination()[5]);	
+	    	       sport=0;
+	    	       dport=0;
 				   etherString=sourceMacString+"->"+destinationMacString+" ";
 			   }
 			   if (packet.hasHeader(ip)) {
@@ -68,9 +78,9 @@ public class ParsePacket {
 					address[7]= 0xff & (ip.destination()[1]);
 					address[8]= 0xff & (ip.destination()[2]);
 					address[9]= 0xff & (ip.destination()[3]);	
-				   ipString=sourceIpString+"->"+destinationIpString+" ";
-			       try{
-		              if(packet.hasHeader(tcp)){
+				    ipString=sourceIpString+"->"+destinationIpString+" ";
+		            if(packet.hasHeader(tcp)){
+		            try{
 		    	          packet.getHeader(tcp);
 		    	          protocol="tcp";
 		    	          sport=tcp.source();
@@ -97,9 +107,12 @@ public class ParsePacket {
 		    	          payloadString=SBUtil.showAsciiInBinary(payload);
 		    	          l4String="tcp "+sport+"->"+dport+" "+flags+" "+payloadString;
 		  				  states[0]=flags+" "+payloadString;
-		              }
-		              else
-		              if(packet.hasHeader(udp)){
+		            }
+		            catch(Exception e){System.out.println("packet error:tcp :"+e);}
+		            }
+		            else
+		            if(packet.hasHeader(udp)){
+		            try{
 		    	          packet.getHeader(udp);
 		    	          protocol="udp";
 		    	          sport=udp.source();
@@ -118,34 +131,41 @@ public class ParsePacket {
 		    	          l4String="udp "+sport+"->"+dport+" "+SBUtil.showAsciiInBinary(payload);
 		    	          payloadString=SBUtil.showAsciiInBinary(payload);
 		    	          states[0]=payloadString;
-		              }
-		              else
-		  			  if(packet.hasHeader(icmp)){
+		            }
+		            catch(Exception e){System.out.println("packet error udp:"+e);}
+		            }
+		            else
+		  			if(packet.hasHeader(icmp)){
+		  			try{
+		  				  packet.getHeader(icmp);
 						  protocol ="icmp";
 						  address[4]= 0;
 						  address[5]= 0;
 						  address[10]= 0;
 						  address[11]= 0;
 						  String icmpString=icmp.checksumDescription();
-						  states[0]=icmpString+" "+SBUtil.showAsciiInBinary(arp.getPayload());
-					  }
-					  else{
+						  payload=icmp.getPayload();
+						  payloadString=SBUtil.showAsciiInBinary(payload);
+						  states[0]=payloadString;
+		  			}
+		  			catch(Exception e){System.out.println("packet error icmp:"+e);}
+					}
+					else{
+					try{
 						  protocol ="ip-N/A";
-						  address[4]= 0xff & (udp.source()>>8);
-						  address[5]= 0xff & udp.source();
-						  address[10]= 0xff & (udp.destination()>>8);
-						  address[11]= 0xff & udp.destination();
-						  states[0]=SBUtil.showAsciiInBinary(eth.getPayload());
-					  }
-			       }
-			       catch(Exception e){
-				      System.out.println("packet error tcp/udp :"+e);
-			       }
+						  sport=0;
+						  dport=0;
+						  payload=ip.getPayload();
+						  payloadString=SBUtil.showAsciiInBinary(payload);
+						  states[0]=payloadString;
+					}
+					catch(Exception e){System.out.println("packet error ip-n/a:"+e);}
+				   }
 			   }
 			   else  // packet is not ip
 			   if(packet.hasHeader(arp)){
-	  			   protocol ="arp";
-	  			   packet.getHeader(arp);
+	  			    protocol ="arp";
+	  			    packet.getHeader(arp);
 					address[4]= 0;
 					address[5]= 0;
 					address[10]= 0;
@@ -160,6 +180,7 @@ public class ParsePacket {
 					states[0]=arpString;			   }
 			   else{
 				   protocol = "ether n/a";
+				   states[0]="?";
 			   }
 				states[2]=protocol;
 //				states[3]=IP[1];//�ｽ�ｽ�ｽM�ｽ�ｽ
@@ -173,7 +194,25 @@ public class ParsePacket {
 				states[7]=sourceMacString;
 				states[8]=destinationMacString;
 			}
-			catch(Exception e){System.out.println("packet error eth or ip:"+e); };		
+			catch(Exception e){System.out.println("packet error eth or ip:"+e); };		    	
+    }
+	
+	public ParsePacket(PcapPacket p){
+		packet=p;
+		try{
+    	packet.scan(Ethernet.ID);
+		}
+		catch(Exception e){System.out.println("ParsePacket can failed:"+e);}
+		reParse();
+		/*
+		try{
+		packet.scan(Ethernet.ID);		
+		}
+		catch(Exception e){
+			System.out.println("error, PasePacket ... scan:"+e);
+		}
+		*/
+
 	}
 
 }
