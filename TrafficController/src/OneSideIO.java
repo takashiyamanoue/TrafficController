@@ -18,6 +18,7 @@ import org.jnetpcap.packet.JScanner;
 import org.jnetpcap.packet.PcapPacket;
 import org.jnetpcap.packet.PcapPacketHandler;
 import org.jnetpcap.packet.format.FormatUtils;
+import org.jnetpcap.protocol.JProtocol;
 import org.jnetpcap.protocol.lan.Ethernet;
 import org.jnetpcap.protocol.network.Ip4;
 
@@ -81,6 +82,8 @@ public class OneSideIO implements Runnable, ForwardInterface
 		PcapPacketHandler<Queue<PcapPacket>> handler = new PcapPacketHandler<Queue<PcapPacket>>() {  
 		  public void nextPacket(PcapPacket packet, Queue<PcapPacket> queue) {  
 //				while(me!=null){
+			    packet.scan(id);
+			    if(!isFromOtherIf(packet)) return;
 				int h=calendar.get(Calendar.HOUR);
 				if(h!=currentHour){
 //					logFileManager.update();
@@ -89,17 +92,25 @@ public class OneSideIO implements Runnable, ForwardInterface
 					main.clearButtonActionPerformed(null);
 					JScanner.getThreadLocal().setFrameNumber(0);  
 				}
+
+//				JBuffer jbuf = new JBuffer(packet.getTotalSize());
+//				packet.transferTo(jbuf);
+//				JMemoryPacket jp =  new JMemoryPacket(packet);
+   
+//				PcapPacket permanent = new PcapPacket(jp); // Deep copy
 				PcapPacket permanent = new PcapPacket(packet);
 				try{
-				permanent.scan(id);
+	   			permanent.scan(id);
+//				    jp.scan(id);
 				}
 				catch(Exception e){
+					System.out.println("pcapPacket scan error:"+e);
 					return;
 				}
 //				if(isFromOtherIf(packet)){
-				if(isFromOtherIf(permanent)){
+//				if(isFromOtherIf(permanent)){
 				    queue.offer(permanent);  
-				}
+//				}
 			}
 		} ; 
 		  
@@ -109,7 +120,7 @@ public class OneSideIO implements Runnable, ForwardInterface
 	}
 	public void start(){
 		if(me==null){
-			me=new Thread(this,"WanSideIO");
+			me=new Thread(this,"OneSideIO-"+this.interfaceNo);
 			me.start();
 		}
 	}
@@ -180,7 +191,7 @@ public class OneSideIO implements Runnable, ForwardInterface
 	     }
          return true;
     }
-	Queue<PcapPacket> queue = new ArrayBlockingQueue<PcapPacket>(100);  	
+	Queue<PcapPacket> queue = new ArrayBlockingQueue<PcapPacket>(500);  	
     public Queue<PcapPacket> getPacketQueue(){
     	return queue;
     }

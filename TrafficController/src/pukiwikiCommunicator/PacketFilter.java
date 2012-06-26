@@ -79,24 +79,53 @@ public void addFilter(String cmd, String[] args){
 }
 private void getRouter(){
     BufferedReader buffer = null; 
-    try{ 
-    	 
-        Process result = Runtime.getRuntime().exec("route"); 
-     
-        BufferedReader output = new BufferedReader 
-            (new InputStreamReader(result.getInputStream())); 
-     
-        String line = output.readLine(); 
-        while(line != null){ 
-            if ( line.startsWith("default") == true ) 
-                break;               
+    Process result=null;
+    String gateway="";
+    	String osName=System.getProperty("os.name");
+    	System.out.println("osName="+osName);
+    	String line="";
+    	if(osName.indexOf("Windows")>=0){
+    		try{
+    		result = Runtime.getRuntime().exec("netstat -rn");
+            BufferedReader output = new BufferedReader 
+                    (new InputStreamReader(result.getInputStream())); 
             line = output.readLine(); 
-        } 
+            while(line != null){ 
+               if ( line.indexOf("0.0.0.0") >=0 ) 
+                           break;               
+                line = output.readLine(); 
+            } 
+    		}
+    		catch(Exception e){
+    			System.out.println("PacketFiter.getRouter windows error:"+e);
+    		}
+            StringTokenizer st = new StringTokenizer( line ); 
+            st.nextToken(); 
+            st.nextToken();
+            gateway = st.nextToken();
+    	}
+    	else
+    	if(osName.indexOf("Linux")>=0){
+            try{
+           result = Runtime.getRuntime().exec("route"); 
+           BufferedReader output = new BufferedReader 
+            (new InputStreamReader(result.getInputStream())); 
+           line = output.readLine(); 
+           while(line != null){ 
+               if ( line.startsWith("default") == true ) 
+                   break;               
+               line = output.readLine(); 
+           } 
+           }
+           catch(Exception e){
+        	   System.out.println("PacketFilter.getRouter linux error:"+e);
+           }
+           StringTokenizer st = new StringTokenizer( line ); 
+           st.nextToken(); 
+           gateway = st.nextToken();
+    	}
      
      
-        StringTokenizer st = new StringTokenizer( line ); 
-        st.nextToken(); 
-        String gateway = st.nextToken();
         System.out.println(gateway);
         this.routerIP=SBUtil.s2byteIp4(gateway);
 /*        
@@ -106,14 +135,6 @@ private void getRouter(){
      
         adapter = st.nextToken(); 
    */  
-    }catch( Exception e ) {  
-        System.out.println( e.toString() ); 
-        /*
-        gateway = new String(); 
-        adapter = new String(); 
-        */
-    } 
-
 } 
 	
 private byte[] getRouterIP(){
@@ -257,10 +278,12 @@ private boolean execCommand(String command, String[] args, ParsePacket p){
     if(command.equals("forward sip=")){
     	if(!p.protocol.equals("tcp")) return false;
     	if(SBUtil.isMatchIpV4Address(args[0],p.sourceIpString)){
-    		String faddr=args[1];
-    		ParsePacket pr=makeForward(p,faddr,args[2]);
-    		this.writeResultToBuffer(command,pr);
-    		return true;
+    		if(p.tcp.destination()==80){
+    		   String faddr=args[1];
+    		   ParsePacket pr=makeForward(p,faddr,args[2]);
+    		   this.writeResultToBuffer(command,pr);
+    		   return true;
+    		}
         }
     	else{
     		return false;
@@ -428,12 +451,19 @@ private String showAsciiInBinary(byte[] b){
 	   int dp=(new Integer(port)).intValue();
 	   int op=0;
 	   if(jp.hasHeader(tcp)){
+		   Tcp.AlternateChecksum tcpac=new Tcp.AlternateChecksum();
+		   if(jp.hasHeader(tcpac)){
+			   jp.getHeader(tcpac);
+		   }
+//		   Tcp.TcpOption tcpo=new Tcp.TcpOption();
 		   jp.getHeader(tcp);
+//		   jp.getHeader(tcpac);
+//		   jp.getHeader(tcpo);
 		   op=tcp.destination();
 		   sp=tcp.source();
 	       tcp.destination(dp);
-	       tcp.source(sp);
-	   	   tcp.checksum(tcp.calculateChecksum());
+//	       tcp.source(sp);
+//	   	   tcp.checksum(tcp.calculateChecksum());
 	   }
 	   else
 	   if(jp.hasHeader(udp)) {
@@ -448,6 +478,7 @@ private String showAsciiInBinary(byte[] b){
 	       return null;
 	   }
 	   ip.destination(da);
+//	   ip.destination(oa);
 	   if(this.anotherSideFilter!=null){
 		    String a=SBUtil.addrPort(da,dp);
 		    String s=SBUtil.addrPort(sa,sp);
@@ -462,6 +493,7 @@ private String showAsciiInBinary(byte[] b){
 	    	eth.destination(macO);
 	   else
 	        eth.destination(macD);
+   	   tcp.checksum(tcp.calculateChecksum());
    	   ip.checksum(ip.calculateChecksum());
 	   eth.checksum(eth.calculateChecksum());
 //   		   pp.packet.peer(pp.ip);
@@ -652,10 +684,15 @@ private String showAsciiInBinary(byte[] b){
 		String ipa=bytes2sip(xip);
 		int repTimes=0;
 		byte[] xmac=null;
+		if(!isInNetwork(xip,networkAddr,networkMask)){
+			if(this.routerIP!=null){
+				xip=routerIP;
+			}
+		}
 		while(xmac==null){
 		    xmac=smac2byte(macTable.get(ipa));
 		    if(xmac==null) {
-		    	if(repTimes>20) return null;
+		    	if(repTimes>5) return null;
 			    sendArp(xip,pp);
 			    try{
 			      Thread.sleep(100);
