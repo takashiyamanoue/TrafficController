@@ -82,8 +82,16 @@ public class OneSideIO implements Runnable, ForwardInterface
 		PcapPacketHandler<Queue<PcapPacket>> handler = new PcapPacketHandler<Queue<PcapPacket>>() {  
 		  public void nextPacket(PcapPacket packet, Queue<PcapPacket> queue) {  
 //				while(me!=null){
-			    packet.scan(id);
-			    if(!isFromOtherIf(packet)) return;
+				PcapPacket permanent = new PcapPacket(packet);
+				try{
+	   			permanent.scan(id);
+//				    jp.scan(id);
+				}
+				catch(Exception e){
+					System.out.println("pcapPacket scan error:"+e);
+					return;
+				}
+			    if(!isFromOtherIf(permanent)) return;
 				int h=calendar.get(Calendar.HOUR);
 				if(h!=currentHour){
 //					logFileManager.update();
@@ -98,15 +106,6 @@ public class OneSideIO implements Runnable, ForwardInterface
 //				JMemoryPacket jp =  new JMemoryPacket(packet);
    
 //				PcapPacket permanent = new PcapPacket(jp); // Deep copy
-				PcapPacket permanent = new PcapPacket(packet);
-				try{
-	   			permanent.scan(id);
-//				    jp.scan(id);
-				}
-				catch(Exception e){
-					System.out.println("pcapPacket scan error:"+e);
-					return;
-				}
 //				if(isFromOtherIf(packet)){
 //				if(isFromOtherIf(permanent)){
 				    queue.offer(permanent);  
@@ -137,10 +136,7 @@ public class OneSideIO implements Runnable, ForwardInterface
 		}
 	}
     public void sendPacket(ParsePacket p){
-//    	PcapPacket px=new PcapPacket(p);
-//    	p.reParse();
     	synchronized(pcap){
-//    	    if(this.pcap.sendPacket(px)!=Pcap.OK){
     		if(this.pcap.sendPacket(p.packet)!=Pcap.OK){
     	    	System.out.println("error @ sendPacket, if="+interfaceNo);
     	    }
@@ -153,7 +149,6 @@ public class OneSideIO implements Runnable, ForwardInterface
     }
     public void sendPacket(JMemoryPacket p, ParsePacket m){
     	synchronized(pcap){
-//    	    if(this.pcap.sendPacket(px)!=Pcap.OK){
     		if(this.pcap.sendPacket(p)!=Pcap.OK){
     	    	System.out.println("error @ sendPacket, if="+interfaceNo);
     	    }
@@ -161,13 +156,11 @@ public class OneSideIO implements Runnable, ForwardInterface
     	if(m==null) return;
 	    if(logManager!=null)
 		      synchronized(logManager){
-//			          logManager.logDetail(main,p,interfaceNo);	
 		    	  logManager.logDetail(main, m, interfaceNo);
 		     }    	
     }
     public void sendPacket(PcapPacket p, ParsePacket m){
     	synchronized(pcap){
-//    	    if(this.pcap.sendPacket(px)!=Pcap.OK){
     		if(this.pcap.sendPacket(p)!=Pcap.OK){
     	    	System.out.println("error @ sendPacket, if="+interfaceNo);
     	    }
@@ -191,7 +184,7 @@ public class OneSideIO implements Runnable, ForwardInterface
 	     }
          return true;
     }
-	Queue<PcapPacket> queue = new ArrayBlockingQueue<PcapPacket>(500);  	
+	Queue<PcapPacket> queue = new ArrayBlockingQueue<PcapPacket>(100);  	
     public Queue<PcapPacket> getPacketQueue(){
     	return queue;
     }

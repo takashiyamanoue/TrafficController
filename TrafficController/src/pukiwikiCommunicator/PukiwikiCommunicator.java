@@ -869,4 +869,13 @@ implements PukiwikiJavaApplication, Runnable
 		//TODO add your code for disConnectButton.actionPerformed
 		this.connectButton.setSelected(false);
 	}
+	@Override
+	public void error(String x) {
+		// TODO Auto-generated method stub
+		if(x.startsWith("format-error")){
+			this.writeMessage("pukiwiki-page:"+x+"\n");
+			this.stop();
+			return;
+		}
+	}
 }

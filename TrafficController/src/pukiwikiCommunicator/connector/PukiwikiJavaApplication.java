@@ -5,4 +5,5 @@ public interface PukiwikiJavaApplication {
 	public void setInput(String x);
 	public void setVisible(boolean f);
 	public void setSaveButtonDebugFrame(SaveButtonDebugFrame f);
+	public void error(String x);
 }

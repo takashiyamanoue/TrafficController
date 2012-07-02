@@ -421,7 +421,7 @@ public class SaveButtonDebugFrame extends JFrame implements AuthDialogListener
 		   String editUrl=baseUrl+"?cmd=edit&page="+pageName;
 		this.println("editUrl="+editUrl);
 //		this.messageTextArea.append(baseUrl+"\n");
-		this.println(baseUrl+"\n");
+		this.println("baseUrl="+baseUrl+"\n");
 //		this.messageTextArea.append(editUrl+"\n");
 		this.println(editUrl+"\n");
 		this.urlField.setText(editUrl);
@@ -456,6 +456,8 @@ public class SaveButtonDebugFrame extends JFrame implements AuthDialogListener
 		int j=z.indexOf("result:");
 		if(j<0){
 			this.println("Could not find out result:");
+//			z=z+"\n"+"result:\n";
+			this.application.error("format-error ... could not find out result:");
 			return;
 		}
 		int k=j+("result:").length();
@@ -605,6 +607,7 @@ public class SaveButtonDebugFrame extends JFrame implements AuthDialogListener
 			return;
 		}
 		*/
+		if(this.updateText==null) this.updateText="";
 		this.updateText=this.updateText+"\n "+insertSpaceAfterNewLine(x);
 		
 		this.urlField.setText(this.actionUrl);
