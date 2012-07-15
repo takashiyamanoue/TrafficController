@@ -6,6 +6,7 @@ import java.util.Vector;
 import org.jnetpcap.PcapHeader;
 import org.jnetpcap.nio.JBuffer;
 import org.jnetpcap.nio.JMemory;
+import org.jnetpcap.packet.JMemoryPacket;
 import org.jnetpcap.packet.PcapPacket;
 import org.jnetpcap.packet.format.FormatUtils;
 import org.jnetpcap.protocol.lan.Ethernet;
@@ -55,23 +56,29 @@ public class PacketMonitorFilter implements FilterInterface
 //	PcapHeader hdr = new PcapHeader();
 //	JBuffer buf = new JBuffer(JMemory.POINTER);
 //	JBuffer buf = new JBuffer(new byte[5000]);
-	Tcp tcp = new Tcp();
-	Udp udp = new Udp();
-	String sip="";
-	String dip="";
-	String smac="";
-	String dmac="";
-	String protocol="";
-	int sport=0;
-	int dport=0;
-	PcapPacket packet;
-    String etherString="";
-    String ipString="";
-    String l4String="";
-    String ptime="";
-    byte[] payload;
-    String payloadString;
-    public String exec(PcapPacket p){
+//	Tcp tcp = new Tcp();
+//	Udp udp = new Udp();
+//	String sip="";
+//	String dip="";
+//	String smac="";
+//	String dmac="";
+//	String protocol="";
+//	int sport=0;
+//	int dport=0;
+//	PcapPacket packet;
+//	JMemoryPacket packet;
+	ParsePacket p;
+//    String etherString="";
+//   String ipString="";
+//    String l4String="";
+//    String ptime="";
+//    byte[] payload;
+//    String payloadString;
+//    public String exec(PcapPacket p){
+//    public String exec(JMemoryPacket p){
+    public String exec(ParsePacket p){
+    	this.p =p;
+    	/*
     	packet=p;
 		ptime=""+(new Date(packet.getCaptureHeader().timestampInMillis()));
 //    	ptime=(new Date()).toString();
@@ -112,8 +119,8 @@ public class PacketMonitorFilter implements FilterInterface
 			if(tcp.flags_RST()) flags=flags+"RST-";
 			if(tcp.flags_CWR()) flags=flags+"CWR-";
 			if(tcp.flags_URG()) flags=flags+"URG-";
-        	l4String="tcp "+sport+"->"+dport+" "+flags+" "+showAsciiInBinary(payload);
-        	payloadString=showAsciiInBinary(payload);
+        	l4String="tcp "+sport+"->"+dport+" "+flags+" "+SBUtil.showAsciiInBinary(payload);
+        	payloadString=SBUtil.showAsciiInBinary(payload);
         }
         else
         if(packet.hasHeader(udp)){
@@ -126,8 +133,8 @@ public class PacketMonitorFilter implements FilterInterface
         	catch(Exception e){
         		payload=new byte[]{'e','r','r','o','r','-','g','e','t','-','p','a','y','l','o','a','d'};
         	}
-        	l4String="udp "+sport+"->"+dport+" "+showAsciiInBinary(payload);
-        	payloadString=showAsciiInBinary(payload);
+        	l4String="udp "+sport+"->"+dport+" "+SBUtil.showAsciiInBinary(payload);
+        	payloadString=SBUtil.showAsciiInBinary(payload);
         }
         else{
         	
@@ -136,6 +143,7 @@ public class PacketMonitorFilter implements FilterInterface
  		catch(Exception e){
  			return null;
  		}
+ 		*/
     	for(int i=0;i<filters.size();i++){
     		Filter f=filters.elementAt(i);
     		boolean rtn=execCommand(f.getCommand(),f.getArgs());
@@ -154,16 +162,16 @@ public class PacketMonitorFilter implements FilterInterface
 //        System.out.println("\n");
         if(command.equals("get ip=")){
         	boolean rtn=false;
-        	String out=ptime+" "+this.etherString+this.ipString+this.l4String+"\n";
+        	String out=p.ptimes+" "+p.etherString+p.ipString+p.l4String+"\n";
 //        	System.out.println("matching..."+out);
 //            if(args[0].equals(sip)){            	
-        	if(isMatchIpV4Address(args[0],sip)){
+        	if(isMatchIpV4Address(args[0],p.sourceIpString)){
 //            	pukiwiki.writeResult(out);
             	this.writeResultToBuffer(out);
             	rtn=true;
             }
 //            if(args[0].equals(dip)){
-        	if(isMatchIpV4Address(args[0],dip)){
+        	if(isMatchIpV4Address(args[0],p.destinationIpString)){
 //            	pukiwiki.writeResult(out);
             	this.writeResultToBuffer(out);
             	rtn=true;
@@ -171,10 +179,10 @@ public class PacketMonitorFilter implements FilterInterface
         	return rtn;
     	}
         if(command.equals("get includes ")){
-        	String out=ptime+" "+this.etherString+this.ipString+this.l4String+"\n";
+        	String out=p.ptimes+" "+p.etherString+p.ipString+p.l4String+"\n";
 //        	System.out.println("matching..."+out);
 //            if(args[0].equals(sip)){            	
-        	if(0<=l4String.indexOf(args[0])){
+        	if(0<=p.l4String.indexOf(args[0])){
 //            	pukiwiki.writeResult(out);
             	this.writeResultToBuffer(out);
             	return true;
@@ -182,14 +190,14 @@ public class PacketMonitorFilter implements FilterInterface
         	return false;
     	}
         if(command.equals("get startsWith ")){
-        	String out=ptime+" "+this.etherString+this.ipString+this.l4String+"\n";
+        	String out=p.ptimes+" "+p.etherString+p.ipString+p.l4String+"\n";
 //        	System.out.println("matching...startsWith "+payloadString+ " and "+args[0]);
 //            if(args[0].equals(sip)){
         	if(args[0]==null) return false;
-        	if(payloadString==null){
-        		payloadString="";
+        	if(p.payloadString==null){
+        		p.payloadString="";
         	}
-        	if(payloadString.startsWith(args[0])){
+        	if(p.payloadString.startsWith(args[0])){
 //            	pukiwiki.writeResult(out);
             	this.writeResultToBuffer(out);
             	return true;
@@ -243,28 +251,7 @@ public class PacketMonitorFilter implements FilterInterface
 		}
 		return false;
 	}
-	char[] asciis=new char[]{
-			'0','1','2','3','4','5','6','7','8','9',
-			'a','b','c','d','e','f','g','h','i','j',
-			'k','l','m','n','o','p','q','r','s','t',
-			'u','v','w','x','y','z',
-			'A','B','C','D','E','F','G','H','I','J',
-			'K','L','M','N','O','P','Q','R','S','T',
-			'U','V','W','X','Y','Z',
-			' ','!','"','#','$','%','&','\'','(',')',
-			'=','-','+','*','/','~','^','|','{','}',
-			'[',']','<','>','?',';',':','.',',','@'};
-	String showAsciiInBinary(byte[] b){
-		String rtn="";
-		for(int i=0;i<80;i++){
-			if(i>=b.length) return rtn;
-			char x=(char)b[i];
-            if(isInChars(x,asciis)) rtn=rtn+x;
-            else rtn=rtn+'.';			
-		}
-		rtn=rtn+"...";
-		return rtn;
-	}
+
 	   ForwardInterface returnInterface;
 	   public void setReturnInterface(ForwardInterface f){
 		   returnInterface=f;

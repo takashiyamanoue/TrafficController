@@ -1,3 +1,4 @@
+import java.nio.ByteBuffer;
 import java.util.Calendar;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -78,45 +79,72 @@ public class OneSideIO implements Runnable, ForwardInterface
 		pcap = p;
 		id= JRegistry.mapDLTToId(pcap.datalink());
 	}
+
+	/* */
+	Queue<PcapPacket> queue = new ArrayBlockingQueue<PcapPacket>(100);  	
+    public Queue<PcapPacket> getPacketQueue(){
+    	return queue;
+    }
 	public void run(){
 		PcapPacketHandler<Queue<PcapPacket>> handler = new PcapPacketHandler<Queue<PcapPacket>>() {  
-		  public void nextPacket(PcapPacket packet, Queue<PcapPacket> queue) {  
-//				while(me!=null){
-				PcapPacket permanent = new PcapPacket(packet);
-				try{
-	   			permanent.scan(id);
-//				    jp.scan(id);
-				}
-				catch(Exception e){
-					System.out.println("pcapPacket scan error:"+e);
-					return;
-				}
-			    if(!isFromOtherIf(permanent)) return;
-				int h=calendar.get(Calendar.HOUR);
-				if(h!=currentHour){
-//					logFileManager.update();
-//					logFileManager=new BlockedFileManager("TempLog-"+h);
-					currentHour=h;
-					main.clearButtonActionPerformed(null);
-					JScanner.getThreadLocal().setFrameNumber(0);  
-				}
-
-//				JBuffer jbuf = new JBuffer(packet.getTotalSize());
-//				packet.transferTo(jbuf);
-//				JMemoryPacket jp =  new JMemoryPacket(packet);
-   
-//				PcapPacket permanent = new PcapPacket(jp); // Deep copy
-//				if(isFromOtherIf(packet)){
-//				if(isFromOtherIf(permanent)){
-				    queue.offer(permanent);  
-//				}
-			}
-		} ; 
-		  
-		int rtn=pcap.loop(-1, handler, queue);  
+		  public synchronized void nextPacket(PcapPacket packet, Queue<PcapPacket> queue) {  
+			  try{
+			  PcapPacket permanent = new PcapPacket(packet);
+			  if(!isFromOtherIf(packet)) return;
+//			  queue.offer(permanent);
+			  if(forwardFilter!=null)
+				  forwardFilter.process(permanent);
+			  }
+			  catch(Exception e){
+				  System.out.println("OneSideIO.run.nextPacket error: "+e);
+			  }
+		  }
+		} ;
+		int rtn=0; 
+		try{
+		 rtn=pcap.loop(-1, handler, queue);  
+		}
+		catch(Exception e){
+			System.out.println("OneSideIO.run pcap.loop error: "+e);
+			pcap.close();
+			System.out.println("exitting loop, please start again.");
+			return;
+		}
 		System.out.println("exiting pcap.loop of if-"+interfaceNo+" due to "+rtn);    
 		pcap.close();  
 	}
+	/* */
+    /* 
+	Queue<JMemoryPacket> queue = new ArrayBlockingQueue<JMemoryPacket>(100);  	
+    public Queue<JMemoryPacket> getPacketQueue(){
+    	return queue;
+    }
+	
+	public void run(){
+		PcapPacketHandler<Queue<JMemoryPacket>> handler = new PcapPacketHandler<Queue<JMemoryPacket>>(){
+          public void nextPacket(PcapPacket packet, Queue<JMemoryPacket> queue) {
+			  byte[] jpb=new byte[2000];
+			  JMemoryPacket jp =  new JMemoryPacket(jpb);
+			  jp.transferFrom(packet);
+			  if(!isFromOtherIf(packet)) return;
+
+			  queue.offer(jp);
+			}
+		} ;
+		int rtn=0; 
+		try{
+		 rtn=pcap.loop(-1, handler, queue);  
+		}
+		catch(Exception e){
+			System.out.println("OneSideIO.run pcap.loop error: "+e);
+			pcap.close();
+			System.out.println("exitting loop, please start again.");
+			return;
+		}
+		System.out.println("exiting pcap.loop of if-"+interfaceNo+" due to "+rtn);    
+		pcap.close();  
+	}
+	*/
 	public void start(){
 		if(me==null){
 			me=new Thread(this,"OneSideIO-"+this.interfaceNo);
@@ -135,44 +163,66 @@ public class OneSideIO implements Runnable, ForwardInterface
 			System.out.println(e.toString());
 		}
 	}
-    public void sendPacket(ParsePacket p){
-    	synchronized(pcap){
-    		if(this.pcap.sendPacket(p.packet)!=Pcap.OK){
-    	    	System.out.println("error @ sendPacket, if="+interfaceNo);
-    	    }
-    	}
+    public void sendPacketPP(ParsePacket p){
+    	if(p==null) return;
+    	if(!p.succeeded) return;
+    	if(p.packet==null) return;
+//    	JMemoryPacket pp=new JMemoryPacket(p.packet);
+//    	byte[] b=p.packet.getByteArray(0, 2000);
+//    	byte[] b=pp.getByteArray(0, pp.getTotalSize());
+//    	this.sendByte(b);
+    	this.sendPcapPacket(p.packet);
 	    if(logManager!=null)
 		      synchronized(logManager){
+//		    	  p.packet=pp;
 //			          logManager.logDetail(main,p,interfaceNo);	
 		    	  logManager.logDetail(main, p, interfaceNo);
 		     }
     }
-    public void sendPacket(JMemoryPacket p, ParsePacket m){
-    	synchronized(pcap){
-    		if(this.pcap.sendPacket(p)!=Pcap.OK){
-    	    	System.out.println("error @ sendPacket, if="+interfaceNo);
-    	    }
-    	}
+    public void sendPacketJM(JMemoryPacket p, ParsePacket m){
+    	if(p==null) return;
+    	byte[] b= p.getByteArray(0, p.getTotalSize());
+    	this.sendByte(b);
     	if(m==null) return;
+    	if(!m.succeeded) return;
 	    if(logManager!=null)
 		      synchronized(logManager){
+//		    	  m.packet=pp;
 		    	  logManager.logDetail(main, m, interfaceNo);
 		     }    	
     }
     public void sendPacket(PcapPacket p, ParsePacket m){
-    	synchronized(pcap){
-    		if(this.pcap.sendPacket(p)!=Pcap.OK){
-    	    	System.out.println("error @ sendPacket, if="+interfaceNo);
-    	    }
-    	}
+    	if(p==null) return;
+//    	PcapPacket pp=new PcapPacket(p);
+//    	JMemoryPacket pp=new JMemoryPacket(p);
+//    	byte [] b=p.getByteArray(0, p.getTotalSize());
+//    	this.sendByte(b);
+    	this.sendPcapPacket(p);
     	if(m==null) return;
+    	if(!m.succeeded) return;
 	    if(logManager!=null)
 		      synchronized(logManager){
+//		    	  m.packet=pp;
 //			          logManager.logDetail(main,p,interfaceNo);	
 		    	  logManager.logDetail(main, m, interfaceNo);
 		     }    	
     }
-    public boolean isFromOtherIf(PcapPacket p){
+    public void sendByte(byte[] b){
+    	ByteBuffer bb=ByteBuffer.wrap(b);
+    	synchronized(pcap){
+    		if(this.pcap.sendPacket(bb)!=Pcap.OK){
+    	    	System.out.println("error @ sendPacket(PcapPacket), if="+interfaceNo);
+    	    }
+    	}     	
+    }
+    public void sendPcapPacket(PcapPacket p){
+    	synchronized(pcap){
+    		if(this.pcap.sendPacket(p)!=Pcap.OK){
+    	    	System.out.println("error @ sendPacket(PcapPacket), if="+interfaceNo);
+    	    }
+    	}     	
+    }
+   public boolean isFromOtherIf(PcapPacket p){
     	if(myIf==null) return true;
     	if(ifMac==null) return true;
 		if (p.hasHeader(eth)) {
@@ -183,10 +233,6 @@ public class OneSideIO implements Runnable, ForwardInterface
 		     return false;
 	     }
          return true;
-    }
-	Queue<PcapPacket> queue = new ArrayBlockingQueue<PcapPacket>(100);  	
-    public Queue<PcapPacket> getPacketQueue(){
-    	return queue;
     }
 	TrafficLogManager logManager;
 	public void setLogManager(TrafficLogManager m){

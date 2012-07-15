@@ -520,9 +520,9 @@ public class MainFrame extends JFrame
 		}
 		else{
 		   lanSideIO.stop();
-		   lan2Wan.stop();
+//		   lan2Wan.stop();
 		   lanSideIO.setNewPcap(lanPcap);
-		   lan2Wan.start();
+//		   lan2Wan.start();
 		   lanSideIO.start();
 		}
 		if(wanSideIO==null){
@@ -538,15 +538,15 @@ public class MainFrame extends JFrame
 		   lan2Wan.setForwardInterface(wanSideIO);
 		   lan2Wan.setAnotherSideFilter(wan2Lan);
 		   lan2Wan.setPacketQueue(lanSideIO.getPacketQueue());
-		   lan2Wan.start();
-		   wan2Lan.start();
+//		   lan2Wan.start();
+//		   wan2Lan.start();
 		   wanSideIO.start();
 		}
 		else{
 		   wanSideIO.stop();
-		   wan2Lan.stop();
+//		   wan2Lan.stop();
 		   wanSideIO.setNewPcap(wanPcap);
-		   wan2Lan.start();
+//		   wan2Lan.start();
 		   wanSideIO.start();
 		}
 	}
@@ -665,8 +665,14 @@ public class MainFrame extends JFrame
 		catch(Exception e){
 			System.out.println("error @ writePackageMessage:"+e);
 		}
-		JScrollBar sb=tcpdump_log.getVerticalScrollBar();
-		sb.setValue(sb.getMaximum());
+		try{
+		   JScrollBar sb=tcpdump_log.getVerticalScrollBar();
+		   if(sb!=null)
+		   sb.setValue(sb.getMaximum());
+		}
+		catch(Exception e){
+			System.out.println("MainFrame.writePacketMessage, sb exception: "+e);
+		}
 		repaint();
 	}
 	public void writeApplicationMessage(String x){

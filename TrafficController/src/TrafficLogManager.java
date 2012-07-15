@@ -11,6 +11,7 @@ import org.jnetpcap.Pcap;
 import org.jnetpcap.PcapHeader;
 import org.jnetpcap.nio.JBuffer;
 import org.jnetpcap.nio.JMemory;
+import org.jnetpcap.packet.JMemoryPacket;
 import org.jnetpcap.packet.JRegistry;
 import org.jnetpcap.packet.JScanner;
 import org.jnetpcap.packet.PcapPacket;
@@ -65,8 +66,10 @@ public class TrafficLogManager {
 		main=m;
 		int h=calendar.get(Calendar.HOUR);
 		if(h!=currentHour){
+			/*
 			logFileManager.update();
 			logFileManager=new BlockedFileManager("TempLog-"+h);
+			*/
 			currentHour=h;
 			main.clearButtonActionPerformed(null);
 			JScanner.getThreadLocal().setFrameNumber(0);  
@@ -74,7 +77,8 @@ public class TrafficLogManager {
 			lastTime=0;
 			packetNumber=0;
 		}
-		long t=p.packet.getCaptureHeader().timestampInMillis();
+//		long t=p.packet.getCaptureHeader().timestampInMillis();
+		long t=p.ptime;
 		if(this.firstTime<0) this.firstTime=t;
 		if(t>this.lastTime) this.lastTime=t;
 		/*
@@ -91,7 +95,7 @@ public class TrafficLogManager {
 		}				
 
 //		packet.scan(id);
-		String rtn=packetFilter.exec(p.packet);
+		String rtn=packetFilter.exec(p);
 		String match="";
 		if(rtn!=null) match=rtn;
 		String smac="", dmac="", sip="", dip="";
@@ -103,8 +107,7 @@ public class TrafficLogManager {
 			return;
 		}
 		*/
-		long time=p.packet.getCaptureHeader().timestampInMillis();
-		String date=""+(new Date(time));
+		String date=p.ptimes;
 		/*
 		*/
 		
@@ -117,7 +120,7 @@ public class TrafficLogManager {
 		         " prtcl="+p.protocol+" "+p.sourceIpString+" -> "+p.destinationIpString+
 		         " "+p.sport+"->"+p.dport+" "+states[0];
 		main.writePacketMessage(wmessage);
-		this.orgLog(packetNumber, time,states, address,match);		
+		this.orgLog(packetNumber, t,states, address,match);		
 		packetNumber++;
 	}
 	VisualTrf vt;
